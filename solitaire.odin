@@ -12,46 +12,64 @@ Card :: struct {
 
 // Solitaire todo:
 
-//Clicking on them brings them to the top of the list. So adjust array of
-//Cards..
-
 // How do you snap too other cards (with rules?)
 
 // Shuffle into a deck - shuffle function
+
+// How do you grab a set of cards?
+
+//Memory management? do we need to cleanup the array?
+
+
+
+
+
 
 
 main :: proc() {
     rl.InitWindow(1280, 720, "Solitrouble")
     cards: [dynamic]Card
     append(&cards, Card {
+	texture = rl.LoadTexture("images/card_clubs_02.png"),
+	position = rl.Vector2 { 640, 320 },
+	tint = rl.WHITE
+    })
+    append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_03.png"),
 	position = rl.Vector2 { 740, 420 },
 	tint = rl.WHITE
     })
     append(&cards, Card {
-	texture = rl.LoadTexture("images/card_clubs_02.png"),
+	texture = rl.LoadTexture("images/card_clubs_04.png"),
 	position = rl.Vector2 { 640, 320 },
 	tint = rl.WHITE
     })
-    rl.SetTargetFPS(60);
+
+    defer delete(cards)
+
+    rl.SetTargetFPS(60)
     card_moving := false
 
-    index := 0
+    card_position := 0
     for !rl.WindowShouldClose() {
 	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
-	    mouse_pos := rl.GetMousePosition();
-	    index = clicked_card(&cards, mouse_pos)
-	    if index >= 0 {
-		card_moving = true
+	    if !card_moving {
+		//Find clicked card, move to the end so its rendered on top
+		mouse_pos := rl.GetMousePosition();
+		card_position = find_clicked_card(&cards, mouse_pos)
+		if card_position >= 0 {
+		    bring_card_top(&cards, card_position)
+		    card_moving = true
+		}
 	    }
 	} else {
 	    card_moving = false
 	}
 
-	if card_moving && index >= 0 {
+	if card_moving {
 	    mouse_delta := rl.GetMouseDelta()
-	    cards[index].position.x = cards[index].position.x + mouse_delta.x
-	    cards[index].position.y = cards[index].position.y + mouse_delta.y
+	    cards[len(cards)-1].position.x = cards[len(cards)-1].position.x + mouse_delta.x
+	    cards[len(cards)-1].position.y = cards[len(cards)-1].position.y + mouse_delta.y
 	}
 
         rl.BeginDrawing()
@@ -62,8 +80,18 @@ main :: proc() {
     rl.CloseWindow()
 }
 
-clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> int {
-    for card, index in cards {
+
+bring_card_top :: proc(cards: ^[dynamic]Card, index: int) {
+    if index >= 0 && index != len(cards) - 1 {
+	moved_card := cards[index]
+	ordered_remove(cards, index)
+	append(cards, moved_card)
+    }
+}
+
+find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> int {
+    //Reversed because this is the rendering order
+    #reverse for card, index in cards {
 	card_width := f32(card.texture.width)
 	card_height := f32(card.texture.height)
 
