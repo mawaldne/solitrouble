@@ -6,21 +6,16 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// How do you snap too other cards
-  // Check the 4 corners to see if they over lap another cards area?
-  // Then draw the texture on that card a little bit lower
-  // Make sure snap_back_position is correct
-
-
 // Fix grabbing bug. Holding down click and going over cards.
-
 // Grab stacks of cards, and snap them. Be able to grab snapped groupings of cards.
 
+// fix odin formatting and tabbing
 // Add the proper rules around snapping. Red on black with decreasing value.
 // Shuffle into a deck - shuffle function
 // How do you grab a set of cards?
+// Check the ALL 4 corners to see if they over lap another cards area?
 // Nicer background
-// Memory management? do we need to cleanup the array?
+// Memory management? do we need to cleanup the array? tracking allocator?
 // Screen size. Full screen and changing scale of things?
 
 
@@ -70,13 +65,8 @@ main :: proc() {
     for !rl.WindowShouldClose() {
 	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
 	    if !card_moving {
-		//Find clicked card, move to the end so its rendered on top
 		mouse_pos := rl.GetMousePosition();
-		card_position := find_clicked_card(&cards, mouse_pos)
-		if card_position >= 0 {
-		    bring_card_top(&cards, card_position)
-		    card_moving = true
-		}
+		card_moving = find_clicked_card(&cards, mouse_pos)
 	    } else {
 		mouse_delta := rl.GetMouseDelta()
 		cards[len(cards)-1].position.x = cards[len(cards)-1].position.x + mouse_delta.x
@@ -108,12 +98,13 @@ bring_card_top :: proc(cards: ^[dynamic]Card, index: int) {
 	moved_card.snap_to_position.x = moved_card.position.x
 	moved_card.snap_to_position.y = moved_card.position.y
 
+	//TODO - do I need to free this?
 	ordered_remove(cards, index)
 	append(cards, moved_card)
     }
 }
 
-find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> int {
+find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> bool {
     //Reversed because this is the rendering order
     #reverse for card, index in cards {
 	card_width := f32(card.texture.width * card.scale)
@@ -123,10 +114,12 @@ find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> int {
 	    mouse_pos.x <= (card.position.x + card_width) &&
 	    mouse_pos.y >= card.position.y &&
 	    mouse_pos.y <= (card.position.y + card_height) {
-	    return index;
+	    //Find clicked card, move to the end so its rendered on top
+	    bring_card_top(cards, index)
+	    return true
 	}
     }
-    return -1
+    return false
 }
 
 find_overlapped_card :: proc(cards: ^[dynamic]Card) {
@@ -138,6 +131,7 @@ find_overlapped_card :: proc(cards: ^[dynamic]Card) {
 	card_width := f32(card.texture.width * card.scale)
 	card_height := f32(card.texture.height * card.scale)
 
+	//TODO: eventually check all 4 corners
 	if  top_card.position.x >= card.position.x &&
 	    top_card.position.x <= (card.position.x + card_width) &&
 	    top_card.position.y >= card.position.y &&
