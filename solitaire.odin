@@ -6,9 +6,7 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// Fix grabbing bug. Holding down click and going over cards.
 // Grab stacks of cards, and snap them. Be able to grab snapped groupings of cards.
-
 // fix odin formatting and tabbing
 // Add the proper rules around snapping. Red on black with decreasing value.
 // Shuffle into a deck - shuffle function
@@ -63,22 +61,24 @@ main :: proc() {
     card_moving := false
 
     for !rl.WindowShouldClose() {
-	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
+	if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
 	    if !card_moving {
 		mouse_pos := rl.GetMousePosition();
 		card_moving = find_clicked_card(&cards, mouse_pos)
-	    } else {
-		mouse_delta := rl.GetMouseDelta()
-		cards[len(cards)-1].position.x = cards[len(cards)-1].position.x + mouse_delta.x
-		cards[len(cards)-1].position.y = cards[len(cards)-1].position.y + mouse_delta.y
-
-		find_overlapped_card(&cards)
 	    }
-	} else {
+	}
+
+	if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
 	    card_moving = false
 	}
 
-	if !card_moving {
+	if card_moving {
+	    mouse_delta := rl.GetMouseDelta()
+	    cards[len(cards)-1].position.x = cards[len(cards)-1].position.x + mouse_delta.x
+	    cards[len(cards)-1].position.y = cards[len(cards)-1].position.y + mouse_delta.y
+	    //TODO: better description. We set the snap_to_position here...
+	    find_overlapped_card(&cards)
+	} else {
 	    cards[len(cards)-1].position.x = cards[len(cards)-1].snap_to_position.x
 	    cards[len(cards)-1].position.y = cards[len(cards)-1].snap_to_position.y
 	}
