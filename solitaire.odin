@@ -58,29 +58,34 @@ main :: proc() {
     defer delete(cards)
 
     rl.SetTargetFPS(60)
-    card_moving := false
+
+    card_moving: bool
+    over_card: bool
+    new_position: rl.Vector2
 
     for !rl.WindowShouldClose() {
 	if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
 	    if !card_moving {
-		mouse_pos := rl.GetMousePosition();
-		card_moving = find_clicked_card(&cards, mouse_pos)
+		card_moving = find_clicked_card(&cards, rl.GetMousePosition())
 	    }
 	}
 
 	if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
 	    card_moving = false
+	    new_position, over_card = find_overlapped_pos(&cards)
 	}
 
 	if card_moving {
 	    mouse_delta := rl.GetMouseDelta()
 	    cards[len(cards)-1].position.x = cards[len(cards)-1].position.x + mouse_delta.x
 	    cards[len(cards)-1].position.y = cards[len(cards)-1].position.y + mouse_delta.y
-	    //TODO: better description. We set the snap_to_position here...
-	    find_overlapped_card(&cards)
 	} else {
-	    cards[len(cards)-1].position.x = cards[len(cards)-1].snap_to_position.x
-	    cards[len(cards)-1].position.y = cards[len(cards)-1].snap_to_position.y
+	    if over_card {
+		cards[len(cards)-1].position = rl.Vector2 { new_position.x, new_position.y + 20 }
+		cards[len(cards)-1].snap_to_position = cards[len(cards)-1].position
+	    } else {
+		cards[len(cards)-1].position = cards[len(cards)-1].snap_to_position
+	    }
 	}
 
         rl.BeginDrawing()
@@ -122,7 +127,7 @@ find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> bool 
     return false
 }
 
-find_overlapped_card :: proc(cards: ^[dynamic]Card) {
+find_overlapped_pos :: proc(cards: ^[dynamic]Card) -> (rl.Vector2, bool) {
     //Top card will always be the one moving
     top_card := &cards[len(cards) - 1]
 
@@ -136,11 +141,10 @@ find_overlapped_card :: proc(cards: ^[dynamic]Card) {
 	    top_card.position.x <= (card.position.x + card_width) &&
 	    top_card.position.y >= card.position.y &&
 	    top_card.position.y <= (card.position.y + card_height) {
-		top_card.snap_to_position.x = card.position.x
-		top_card.snap_to_position.y = card.position.y + 20
-		return
+		return card.position, true
 	}
     }
+    return top_card.position, false
 }
 
 
