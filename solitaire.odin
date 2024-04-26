@@ -12,6 +12,8 @@ import "core:fmt"
 // Should only be able to grab top cards on stack
     //stacks ? -
 
+
+
 // Add the proper rules around snapping. Red on black with decreasing value.
 // Shuffle into a deck - shuffle function
 // How do you grab a set of cards?
@@ -26,7 +28,6 @@ Card :: struct {
     texture: rl.Texture2D,
     position: rl.Vector2,
     snap_to_position: rl.Vector2,
-    stacked_card: ^Card,
     scale: i32
 }
 
@@ -44,25 +45,21 @@ main :: proc() {
     append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_02.png"),
 	position = rl.Vector2 { 340, 320 },
-	stacked_card = nil,
 	scale = 2
     })
     append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_03.png"),
 	position = rl.Vector2 { 440, 320 },
-	stacked_card = nil,
 	scale = 2
     })
     append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_04.png"),
 	position = rl.Vector2 { 540, 320 },
 	snap_to_position = rl.Vector2 { 640, 320 },
-	stacked_card = nil,
 	scale = 2
     })
 
-    stacks := [2]Stack{
-	{rl.Vector2 { 140, 320 }},
+    stacks := [1]Stack{
 	{rl.Vector2 { 240, 320 }}
     }
 
@@ -94,23 +91,15 @@ main :: proc() {
 	    clicked_card.position.y += mouse_delta.y
 	} else {
 	    if overlapped {
-		//This all needs to change...Not sure about stacked cards linked list
-		stack_card: ^Card
-		stack_card = clicked_card
-		for stack_card != nil {
-		    stack_card.position = rl.Vector2 {
-			overlapped_card.position.x,
-			overlapped_card.position.y + 30
-		    }
-		    stack_card = stack_card.stacked_card
+		clicked_card.position = rl.Vector2 {
+		overlapped_card.position.x,
+		overlapped_card.position.y + 30
 		}
-		overlapped = false
-		// for card in cards {
-		//     fmt.printf("%v %v\n", card.position, card.stacked_card)
-		// }
-	    } else {
-		//cards[len(cards)-1].position = cards[len(cards)-1].snap_to_position
 	    }
+	    overlapped = false
+	    // for card in cards {
+	    //     fmt.printf("%v %v\n", card.position)
+	    // }
 	}
 
         rl.BeginDrawing()
@@ -162,9 +151,13 @@ find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> int {
 }
 
 find_overlapped_card :: proc(cards: ^[dynamic]Card, top_card: ^Card) -> (^Card, bool) {
+    //Potentially only need to check the top card of each stack...Since you can
+    //over lap cards below...
+
     if top_card == nil {
 	return nil, false
     }
+
     //Reversed because this is the rendering order
     #reverse for card, index in cards[:len(cards)-1] {
 	card_width := f32(card.texture.width * card.scale)
@@ -181,7 +174,7 @@ find_overlapped_card :: proc(cards: ^[dynamic]Card, top_card: ^Card) -> (^Card, 
     return nil, false
 }
 
-draw_stacks :: proc(stacks: ^[2]Stack) {
+draw_stacks :: proc(stacks: ^[1]Stack) {
     for stack in stacks {
 	rl.DrawRectangleV(
 	    stack.position,
