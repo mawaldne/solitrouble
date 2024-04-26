@@ -6,8 +6,12 @@ import "core:fmt"
 
 // Solitaire todo:
 
+//Stack sections to put cards?
+
 // Grab stacks of cards, and snap them. Be able to grab snapped groupings of cards.
-// fix odin formatting and tabbing
+// Should only be able to grab top cards on stack
+    //stacks ? -
+
 // Add the proper rules around snapping. Red on black with decreasing value.
 // Shuffle into a deck - shuffle function
 // How do you grab a set of cards?
@@ -15,81 +19,103 @@ import "core:fmt"
 // Nicer background
 // Memory management? do we need to cleanup the array? tracking allocator?
 // Screen size. Full screen and changing scale of things?
+// fix odin formatting and tabbing
 
 
 Card :: struct {
     texture: rl.Texture2D,
     position: rl.Vector2,
     snap_to_position: rl.Vector2,
-    tint: rl.Color,
+    stacked_card: ^Card,
     scale: i32
+}
+
+
+Stack :: struct {
+    position: rl.Vector2,
 }
 
 main :: proc() {
     rl.InitWindow(1280, 720, "Solitrouble")
+    //todo - stacks will contain cards. render cards in each stack.
+    //Move cards onto the new stacks!
+
     cards: [dynamic]Card
     append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_02.png"),
 	position = rl.Vector2 { 340, 320 },
-	tint = rl.WHITE,
+	stacked_card = nil,
 	scale = 2
     })
     append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_03.png"),
 	position = rl.Vector2 { 440, 320 },
-	tint = rl.WHITE,
+	stacked_card = nil,
 	scale = 2
     })
     append(&cards, Card {
 	texture = rl.LoadTexture("images/card_clubs_04.png"),
 	position = rl.Vector2 { 540, 320 },
-	tint = rl.WHITE,
+	snap_to_position = rl.Vector2 { 640, 320 },
+	stacked_card = nil,
 	scale = 2
     })
 
-    append(&cards, Card {
-	texture = rl.LoadTexture("images/card_clubs_05.png"),
-	position = rl.Vector2 { 640, 320 },
-	snap_to_position = rl.Vector2 { 640, 320 },
-	tint = rl.WHITE,
-	scale = 2
-    })
+    stacks := [2]Stack{
+	{rl.Vector2 { 140, 320 }},
+	{rl.Vector2 { 240, 320 }}
+    }
 
     defer delete(cards)
 
     rl.SetTargetFPS(60)
 
-    card_moving: bool
-    over_card: bool
-    new_position: rl.Vector2
+    cards_moving: bool
+    overlapped: bool
+    overlapped_card: ^Card
+    clicked_card: ^Card
+    index: int
 
     for !rl.WindowShouldClose() {
 	if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
-	    if !card_moving {
-		card_moving = find_clicked_card(&cards, rl.GetMousePosition())
+	    if !cards_moving {
+		clicked_card, cards_moving = handle_clicked_card(&cards)
 	    }
 	}
 
 	if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
-	    card_moving = false
-	    new_position, over_card = find_overlapped_pos(&cards)
+	    cards_moving = false
+	    overlapped_card, overlapped = find_overlapped_card(&cards, clicked_card)
 	}
 
-	if card_moving {
+	if cards_moving {
 	    mouse_delta := rl.GetMouseDelta()
-	    cards[len(cards)-1].position.x = cards[len(cards)-1].position.x + mouse_delta.x
-	    cards[len(cards)-1].position.y = cards[len(cards)-1].position.y + mouse_delta.y
+	    clicked_card.position.x += mouse_delta.x
+	    clicked_card.position.y += mouse_delta.y
 	} else {
-	    if over_card {
-		cards[len(cards)-1].position = rl.Vector2 { new_position.x, new_position.y + 20 }
-		cards[len(cards)-1].snap_to_position = cards[len(cards)-1].position
+	    if overlapped {
+		//This all needs to change...Not sure about stacked cards linked list
+		stack_card: ^Card
+		stack_card = clicked_card
+		for stack_card != nil {
+		    stack_card.position = rl.Vector2 {
+			overlapped_card.position.x,
+			overlapped_card.position.y + 30
+		    }
+		    stack_card = stack_card.stacked_card
+		}
+		overlapped = false
+		// for card in cards {
+		//     fmt.printf("%v %v\n", card.position, card.stacked_card)
+		// }
 	    } else {
-		cards[len(cards)-1].position = cards[len(cards)-1].snap_to_position
+		//cards[len(cards)-1].position = cards[len(cards)-1].snap_to_position
 	    }
 	}
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.BLUE)
+	draw_stacks(&stacks)
 	draw_cards(&cards)
 	rl.EndDrawing()
     }
@@ -97,7 +123,7 @@ main :: proc() {
 }
 
 
-bring_card_top :: proc(cards: ^[dynamic]Card, index: int) {
+bring_stack_top :: proc(cards: ^[dynamic]Card, index: int) {
     if index >= 0 && index != len(cards) - 1 {
 	moved_card := cards[index]
 	moved_card.snap_to_position.x = moved_card.position.x
@@ -109,7 +135,16 @@ bring_card_top :: proc(cards: ^[dynamic]Card, index: int) {
     }
 }
 
-find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> bool {
+handle_clicked_card :: proc(cards: ^[dynamic]Card) -> (^Card, bool) {
+    index := find_clicked_card(cards, rl.GetMousePosition())
+    if index >= 0 {
+        bring_stack_top(cards, index)
+        return &cards[len(cards) - 1], true
+    }
+    return nil, false
+}
+
+find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> int {
     //Reversed because this is the rendering order
     #reverse for card, index in cards {
 	card_width := f32(card.texture.width * card.scale)
@@ -119,20 +154,19 @@ find_clicked_card :: proc(cards: ^[dynamic]Card, mouse_pos: rl.Vector2) -> bool 
 	    mouse_pos.x <= (card.position.x + card_width) &&
 	    mouse_pos.y >= card.position.y &&
 	    mouse_pos.y <= (card.position.y + card_height) {
-	    //Find clicked card, move to the end so its rendered on top
-	    bring_card_top(cards, index)
-	    return true
+
+	    return index
 	}
     }
-    return false
+    return -1
 }
 
-find_overlapped_pos :: proc(cards: ^[dynamic]Card) -> (rl.Vector2, bool) {
-    //Top card will always be the one moving
-    top_card := &cards[len(cards) - 1]
-
+find_overlapped_card :: proc(cards: ^[dynamic]Card, top_card: ^Card) -> (^Card, bool) {
+    if top_card == nil {
+	return nil, false
+    }
     //Reversed because this is the rendering order
-    #reverse for card in cards[:len(cards)-1] {
+    #reverse for card, index in cards[:len(cards)-1] {
 	card_width := f32(card.texture.width * card.scale)
 	card_height := f32(card.texture.height * card.scale)
 
@@ -141,12 +175,21 @@ find_overlapped_pos :: proc(cards: ^[dynamic]Card) -> (rl.Vector2, bool) {
 	    top_card.position.x <= (card.position.x + card_width) &&
 	    top_card.position.y >= card.position.y &&
 	    top_card.position.y <= (card.position.y + card_height) {
-		return card.position, true
+		return &cards[index], true
 	}
     }
-    return top_card.position, false
+    return nil, false
 }
 
+draw_stacks :: proc(stacks: ^[2]Stack) {
+    for stack in stacks {
+	rl.DrawRectangleV(
+	    stack.position,
+	    rl.Vector2 {42 * 2, 60 * 2},
+	    rl.BLACK
+	)
+    }
+}
 
 draw_cards :: proc(cards: ^[dynamic]Card) {
     for card in cards {
@@ -170,7 +213,7 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
 	rl.DrawTexturePro(
 	    card.texture,
 	    draw_card_source,
-	    draw_player_dest, 0, 0, card.tint
+	    draw_player_dest, 0, 0, rl.WHITE
 	)
     }
 }
