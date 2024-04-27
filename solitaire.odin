@@ -6,14 +6,31 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// fix odin formatting and tabbing
+
+//Maybe rename a bit. But keep the concept of cards on stack and slices.
+// Stock -> where we pull from
+// waste pile -> where cards go we can't use
+// foundations -> where we create our 4 final stacks
+// tableau -> where we have our 7 stacks
+
+// Setup area. All the piles properly setup. And you can drag from the
+// Stock -> tableau -> Foundations, but you can't go back to the stock..
+
+// Create a deck we can pull cards off of
+// Click on deck makes the waste open up 3 more cards
 
 // Add the proper rules around snapping. Red on black with decreasing value.
+
 // Shuffle into a deck - shuffle function
-// How do you grab a set of cards?
 // Check the ALL 4 corners to see if they over lap another cards area?
+
+// UNDO! how... array of things that happened? The stack name and the card that went there.
+// Reverse this array
+
 // Nicer background
+
 // Memory management? do we need to cleanup the array? tracking allocator?
+
 // Screen size. Full screen and changing scale of things?
 
 
@@ -21,68 +38,80 @@ Card :: struct {
     texture: rl.Texture2D,
     position: rl.Vector2,
     scale: i32,
-    clickable: bool
+    // Can click this card
+    clickable: bool,
+    // Can have cards stacked on it
+    stackable: bool
 }
 
+// TODO: Potentially have a game stack of each stack so we can animate things
+// into each stack later?
 
 main :: proc() {
     rl.InitWindow(1280, 720, "Solitrouble")
 
-    card_stack1: [dynamic]Card
-    append(&card_stack1, Card {
+    stock_stack: [dynamic]Card
+     append(&stock_stack, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 140, 190 },
+        scale = 2,
+        clickable = false
+    })
+    append(&stock_stack, Card {
+        texture = rl.LoadTexture("images/card_clubs_09.png"),
+        position = rl.Vector2 { 170, 190 },
+        scale = 2,
+        clickable = false
+    })
+    append(&stock_stack, Card {
+        texture = rl.LoadTexture("images/card_diamonds_08.png"),
+        position = rl.Vector2 { 200, 190 },
+        scale = 2,
+        clickable = false
+    })
+    append(&stock_stack, Card {
+        texture = rl.LoadTexture("images/card_clubs_07.png"),
+        position = rl.Vector2 { 230, 190 },
+        scale = 2,
+        clickable = true,
+    })
+
+    tableau1: [dynamic]Card
+    append(&tableau1, Card {
         texture = rl.LoadTexture("images/card_back.png"),
         position = rl.Vector2 { 340, 290 },
         scale = 2,
-        clickable = false
+        clickable = false,
+        stackable = true
     })
-    append(&card_stack1, Card {
-        texture = rl.LoadTexture("images/card_clubs_02.png"),
-        position = rl.Vector2 { 340, 320 },
-        scale = 2,
-        clickable = true
-    })
-    append(&card_stack1, Card {
-        texture = rl.LoadTexture("images/card_clubs_03.png"),
-        position = rl.Vector2 { 340, 350 },
-        scale = 2,
-        clickable = true
-    })
-    append(&card_stack1, Card {
-        texture = rl.LoadTexture("images/card_clubs_04.png"),
+    append(&tableau1, Card {
+        texture = rl.LoadTexture("images/card_clubs_10.png"),
         position = rl.Vector2 { 340, 380 },
         scale = 2,
-        clickable = true
+        clickable = true,
+        stackable = true
     })
 
-    card_stack2: [dynamic]Card
-    append(&card_stack2, Card {
+    tableau2: [dynamic]Card
+    append(&tableau2, Card {
         texture = rl.LoadTexture("images/card_back.png"),
         position = rl.Vector2 { 440, 290 },
         scale = 2,
-        clickable = false
+        clickable = false,
+        stackable = true
     })
-    append(&card_stack2, Card {
-        texture = rl.LoadTexture("images/card_clubs_05.png"),
-        position = rl.Vector2 { 440, 320 },
-        scale = 2,
-        clickable = true
-    })
-    append(&card_stack2, Card {
-        texture = rl.LoadTexture("images/card_clubs_06.png"),
-        position = rl.Vector2 { 440, 350 },
-        scale = 2,
-        clickable = true
-    })
-    append(&card_stack2, Card {
-        texture = rl.LoadTexture("images/card_clubs_07.png"),
+    append(&tableau2, Card {
+        texture = rl.LoadTexture("images/card_diamonds_10.png"),
         position = rl.Vector2 { 440, 380 },
         scale = 2,
-        clickable = true
+        clickable = true,
+        stackable = true
     })
 
     card_stacks: [dynamic][dynamic]Card
-    append(&card_stacks, card_stack1)
-    append(&card_stacks, card_stack2)
+    append(&card_stacks, tableau1)
+    append(&card_stacks, tableau2)
+    append(&card_stacks, stock_stack)
 
     defer delete(card_stacks)
 
@@ -97,12 +126,10 @@ main :: proc() {
 
     for !rl.WindowShouldClose() {
         if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
-
             if !cards_moving {
                 clicked_slice, previous_stack, cards_moving =
                 find_clicked_slice(&card_stacks, rl.GetMousePosition())
             }
-
         }
 
         if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
@@ -126,6 +153,8 @@ main :: proc() {
                     clicked_slice[i].position = rl.Vector2 {
                         last_card_position.x, last_card_position.y + f32(30 * (i + 1))
                     }
+                    clicked_slice[i].stackable = true
+                    clicked_slice[i].clickable = true
                 }
                 overlapped = false
                 append(next_stack, ..clicked_slice[:])
@@ -137,7 +166,6 @@ main :: proc() {
                         last_card_position.x, last_card_position.y + f32(30 * (i + 1))
                     }
                 }
-
                 append(previous_stack, ..clicked_slice[:])
                 clicked_slice = nil
             }
@@ -204,7 +232,8 @@ find_overlapped_stack :: proc(card_stacks: ^[dynamic][dynamic]Card, clicked_slic
             if  top_card.position.x >= card.position.x &&
                 top_card.position.x <= (card.position.x + card_width) &&
                 top_card.position.y >= card.position.y &&
-                top_card.position.y <= (card.position.y + card_height) {
+                top_card.position.y <= (card.position.y + card_height) &&
+                card.stackable {
                 return &card_stacks[card_stack_index], true
             }
         }
