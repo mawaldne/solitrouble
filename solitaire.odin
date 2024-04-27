@@ -6,7 +6,7 @@ import "core:fmt"
 
 // Solitaire todo:
 
-//BUG: How do we deal with stacks with nothing in them?
+// fix odin formatting and tabbing
 
 // Add the proper rules around snapping. Red on black with decreasing value.
 // Shuffle into a deck - shuffle function
@@ -15,13 +15,13 @@ import "core:fmt"
 // Nicer background
 // Memory management? do we need to cleanup the array? tracking allocator?
 // Screen size. Full screen and changing scale of things?
-// fix odin formatting and tabbing
 
 
 Card :: struct {
     texture: rl.Texture2D,
     position: rl.Vector2,
-    scale: i32
+    scale: i32,
+    clickable: bool
 }
 
 
@@ -30,36 +30,54 @@ main :: proc() {
 
     card_stack1: [dynamic]Card
     append(&card_stack1, Card {
+	texture = rl.LoadTexture("images/card_back.png"),
+	position = rl.Vector2 { 340, 290 },
+	scale = 2,
+	clickable = false
+    })
+    append(&card_stack1, Card {
 	texture = rl.LoadTexture("images/card_clubs_02.png"),
 	position = rl.Vector2 { 340, 320 },
-	scale = 2
+	scale = 2,
+	clickable = true
     })
     append(&card_stack1, Card {
 	texture = rl.LoadTexture("images/card_clubs_03.png"),
 	position = rl.Vector2 { 340, 350 },
-	scale = 2
+	scale = 2,
+	clickable = true
     })
     append(&card_stack1, Card {
 	texture = rl.LoadTexture("images/card_clubs_04.png"),
 	position = rl.Vector2 { 340, 380 },
-	scale = 2
+	scale = 2,
+	clickable = true
     })
 
     card_stack2: [dynamic]Card
     append(&card_stack2, Card {
+	texture = rl.LoadTexture("images/card_back.png"),
+	position = rl.Vector2 { 440, 290 },
+	scale = 2,
+	clickable = false
+    })
+    append(&card_stack2, Card {
 	texture = rl.LoadTexture("images/card_clubs_05.png"),
 	position = rl.Vector2 { 440, 320 },
-	scale = 2
+	scale = 2,
+	clickable = true
     })
     append(&card_stack2, Card {
 	texture = rl.LoadTexture("images/card_clubs_06.png"),
 	position = rl.Vector2 { 440, 350 },
-	scale = 2
+	scale = 2,
+	clickable = true
     })
     append(&card_stack2, Card {
 	texture = rl.LoadTexture("images/card_clubs_07.png"),
 	position = rl.Vector2 { 440, 380 },
-	scale = 2
+	scale = 2,
+	clickable = true
     })
 
     card_stacks: [dynamic][dynamic]Card
@@ -150,7 +168,8 @@ find_clicked_slice:: proc(card_stacks: ^[dynamic][dynamic]Card, mouse_pos: rl.Ve
 	    if  mouse_pos.x >= card.position.x &&
 		mouse_pos.x <= (card.position.x + card_width) &&
 		mouse_pos.y >= card.position.y &&
-		mouse_pos.y <= (card.position.y + card_height) {
+		mouse_pos.y <= (card.position.y + card_height) &&
+		card.clickable {
 
 		//Copy the clicked slice
 		clicked_slice := card_stacks[card_stack_index][card_index:len(cards)]
@@ -219,4 +238,3 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
 	)
     }
 }
-
