@@ -3,15 +3,7 @@ package game
 import rl "vendor:raylib"
 import "core:fmt"
 
-
 // Solitaire todo:
-
-
-//Maybe rename a bit. But keep the concept of cards on stack and slices.
-// Stock -> where we pull from
-// waste pile -> where cards go we can't use
-// foundations -> where we create our 4 final stacks
-// tableau -> where we have our 7 stacks
 
 // Setup area. All the piles properly setup. And you can drag from the
 // Stock -> tableau -> Foundations, but you can't go back to the stock..
@@ -21,7 +13,11 @@ import "core:fmt"
 
 // Add the proper rules around snapping. Red on black with decreasing value.
 
+// Create a nicer way to load cards
 // Shuffle into a deck - shuffle function
+
+// WINNING STATE! How do you win
+
 // Check the ALL 4 corners to see if they over lap another cards area?
 
 // UNDO! how... array of things that happened? The stack name and the card that went there.
@@ -33,6 +29,10 @@ import "core:fmt"
 
 // Screen size. Full screen and changing scale of things?
 
+  //TODO - Now you need to check each stack in the game state object? Which stack did you click on. And what is the previous stack. etc
+    //Note, you usually only need to check the last card of each stack. That is the only place you will over over fyi...
+    //You can click on other cards though... OH WAIT. at the start of the game, all certain cards are not clickable either unless they match
+    //rules...So you will need to keep that state up to date too! ARG...
 
 Card :: struct {
     texture: rl.Texture2D,
@@ -44,205 +44,202 @@ Card :: struct {
     stackable: bool
 }
 
-// TODO: Potentially have a game stack of each stack so we can animate things
-// into each stack later?
+Game_Board :: struct {
+    stock_pile: [dynamic]Card,
+    tableau: [dynamic][dynamic]Card,
+    foundation: [dynamic][dynamic]Card
+}
 
 main :: proc() {
     rl.InitWindow(1280, 720, "Solitrouble")
 
-    stock_stack: [dynamic]Card
-     append(&stock_stack, Card {
-        texture = rl.LoadTexture("images/card_back.png"),
-        position = rl.Vector2 { 140, 190 },
-        scale = 2,
-        clickable = false
-    })
-    append(&stock_stack, Card {
-        texture = rl.LoadTexture("images/card_clubs_09.png"),
-        position = rl.Vector2 { 170, 190 },
-        scale = 2,
-        clickable = false
-    })
-    append(&stock_stack, Card {
-        texture = rl.LoadTexture("images/card_diamonds_08.png"),
-        position = rl.Vector2 { 200, 190 },
-        scale = 2,
-        clickable = false
-    })
-    append(&stock_stack, Card {
-        texture = rl.LoadTexture("images/card_clubs_07.png"),
-        position = rl.Vector2 { 230, 190 },
-        scale = 2,
-        clickable = true,
-    })
+    game_board: Game_Board
+    setup_game_board(&game_board)
 
-    tableau1: [dynamic]Card
-    append(&tableau1, Card {
-        texture = rl.LoadTexture("images/card_back.png"),
-        position = rl.Vector2 { 340, 290 },
-        scale = 2,
-        clickable = false,
-        stackable = true
-    })
-    append(&tableau1, Card {
-        texture = rl.LoadTexture("images/card_clubs_10.png"),
-        position = rl.Vector2 { 340, 380 },
-        scale = 2,
-        clickable = true,
-        stackable = true
-    })
-
-    tableau2: [dynamic]Card
-    append(&tableau2, Card {
-        texture = rl.LoadTexture("images/card_back.png"),
-        position = rl.Vector2 { 440, 290 },
-        scale = 2,
-        clickable = false,
-        stackable = true
-    })
-    append(&tableau2, Card {
-        texture = rl.LoadTexture("images/card_diamonds_10.png"),
-        position = rl.Vector2 { 440, 380 },
-        scale = 2,
-        clickable = true,
-        stackable = true
-    })
-
-    card_stacks: [dynamic][dynamic]Card
-    append(&card_stacks, tableau1)
-    append(&card_stacks, tableau2)
-    append(&card_stacks, stock_stack)
-
-    defer delete(card_stacks)
+    //TODO?
+    //defer delete(game_board.stock_pile)
+    //defer delete(game_board.tableau)
+    //defer delete(game_board.foundation)
 
     rl.SetTargetFPS(60)
 
     cards_moving: bool
-    clicked_slice: [dynamic]Card
-    previous_stack: ^[dynamic]Card
+    moving_cards: [dynamic]Card
 
-    overlapped: bool
-    next_stack: ^[dynamic]Card
+    over_pile: bool
+    previous_pile: ^[dynamic]Card
+    next_pile: ^[dynamic]Card
 
     for !rl.WindowShouldClose() {
         if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
             if !cards_moving {
-                clicked_slice, previous_stack, cards_moving =
-                find_clicked_slice(&card_stacks, rl.GetMousePosition())
+                moving_cards, previous_pile, cards_moving = get_clicked_cards(&game_board)
             }
         }
 
         if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
             cards_moving = false
-            next_stack, overlapped =
-            find_overlapped_stack(&card_stacks, &clicked_slice)
+            next_pile, over_pile = get_overlapped_pile(&game_board, &moving_cards)
         }
 
         if cards_moving {
             mouse_delta := rl.GetMouseDelta()
             //Draw the moving slice.
-            for i in 0..<len(clicked_slice) {
-                clicked_slice[i].position.x += mouse_delta.x
-                clicked_slice[i].position.y += mouse_delta.y
+            for i in 0..<len(moving_cards) {
+                moving_cards[i].position.x += mouse_delta.x
+                moving_cards[i].position.y += mouse_delta.y
             }
         } else {
-            if overlapped {
+            if over_pile {
                 //Get the last card in the stack
-                last_card_position := next_stack[len(next_stack) - 1].position
-                for i in 0..<len(clicked_slice) {
-                    clicked_slice[i].position = rl.Vector2 {
+                last_card_position := next_pile[len(next_pile) - 1].position
+                for i in 0..<len(moving_cards) {
+                    moving_cards[i].position = rl.Vector2 {
                         last_card_position.x, last_card_position.y + f32(30 * (i + 1))
                     }
-                    clicked_slice[i].stackable = true
-                    clicked_slice[i].clickable = true
+                    moving_cards[i].stackable = true
+                    moving_cards[i].clickable = true
                 }
-                overlapped = false
-                append(next_stack, ..clicked_slice[:])
-                clicked_slice = nil
-            } else if clicked_slice != nil {
-                last_card_position := previous_stack[len(previous_stack) - 1].position
-                for i in 0..<len(clicked_slice) {
-                    clicked_slice[i].position = rl.Vector2 {
+                over_pile = false
+                append(next_pile, ..moving_cards[:])
+            } else if moving_cards != nil {
+                last_card_position := previous_pile[len(previous_pile) - 1].position
+                for i in 0..<len(moving_cards) {
+                    moving_cards[i].position = rl.Vector2 {
                         last_card_position.x, last_card_position.y + f32(30 * (i + 1))
                     }
                 }
-                append(previous_stack, ..clicked_slice[:])
-                clicked_slice = nil
+                append(previous_pile, ..moving_cards[:])
             }
+            moving_cards = nil
         }
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.BLUE)
 
         //Draw all cards
-        for i in 0..<len(card_stacks) {
-            draw_cards(&card_stacks[i])
+        draw_cards(&game_board.stock_pile)
+        for i in 0..<len(game_board.tableau) {
+            draw_cards(&game_board.tableau[i])
         }
-        //Draw the moving slice if exists
-        draw_cards(&clicked_slice)
+        for i in 0..<len(game_board.foundation) {
+            draw_cards(&game_board.foundation[i])
+        }
+
+        //Draw the moving cards if exists
+        draw_cards(&moving_cards)
 
         rl.EndDrawing()
     }
     rl.CloseWindow()
 }
 
-find_clicked_slice:: proc(card_stacks: ^[dynamic][dynamic]Card, mouse_pos: rl.Vector2) -> ([dynamic]Card, ^[dynamic]Card, bool) {
-    for card_stack, card_stack_index in card_stacks {
-        cards := card_stack
-        //Reversed because this is the rendering order and we want to select the top one first
-        //TODO: consider just using index to iterate?
-        #reverse for card, card_index in cards {
-            card_width := f32(card.texture.width * card.scale)
-            card_height := f32(card.texture.height * card.scale)
+get_clicked_cards :: proc(game_board: ^Game_Board) -> ([dynamic]Card, ^[dynamic]Card, bool) {
+    moving_cards: [dynamic]Card
+    cards_moving: bool
 
-            if  mouse_pos.x >= card.position.x &&
-            mouse_pos.x <= (card.position.x + card_width) &&
-            mouse_pos.y >= card.position.y &&
-            mouse_pos.y <= (card.position.y + card_height) &&
-            card.clickable {
+    moving_cards, cards_moving = find_clicked_cards(&game_board.stock_pile)
+    if cards_moving {
+        return moving_cards, &game_board.stock_pile, cards_moving
+    }
 
-                //Copy the clicked slice
-                clicked_slice := card_stacks[card_stack_index][card_index:len(cards)]
-                clicked_slice_copy := make([dynamic]Card, len(clicked_slice))
-                copy(clicked_slice_copy[:], clicked_slice[:])
-
-                //Delete from current stack
-                remove_range(&card_stacks[card_stack_index], card_index, len(card_stacks[card_stack_index]))
-
-                return clicked_slice_copy, &card_stacks[card_stack_index], true
-            }
+    for i in 0..<len(game_board.tableau) {
+        moving_cards, cards_moving = find_clicked_cards(&game_board.tableau[i])
+        if cards_moving {
+            return moving_cards, &game_board.tableau[i], cards_moving
+        }
+    }
+    for i in 0..<len(game_board.foundation) {
+        moving_cards, cards_moving = find_clicked_cards(&game_board.foundation[i])
+        if cards_moving {
+            return moving_cards, &game_board.foundation[i], cards_moving
         }
     }
     return nil, nil, false
 }
 
-find_overlapped_stack :: proc(card_stacks: ^[dynamic][dynamic]Card, clicked_slice: ^[dynamic]Card) -> (^[dynamic]Card, bool) {
-    if clicked_slice == nil || len(clicked_slice) == 0 {
-        return nil, false
-    }
-    top_card := clicked_slice[0]
-    for card_stack, card_stack_index in card_stacks {
-        cards := card_stack
-        //Reversed because this is the rendering order and we want to select the top one first
-        //TODO: consider just using index to iterate?
-        #reverse for card, card_index in cards {
-            card_width := f32(card.texture.width * card.scale)
-            card_height := f32(card.texture.height * card.scale)
-            //todo: eventually check all 4 corners
-            if  top_card.position.x >= card.position.x &&
-                top_card.position.x <= (card.position.x + card_width) &&
-                top_card.position.y >= card.position.y &&
-                top_card.position.y <= (card.position.y + card_height) &&
-                card.stackable {
-                return &card_stacks[card_stack_index], true
-            }
+
+find_clicked_cards :: proc(pile: ^[dynamic]Card) -> ([dynamic]Card, bool) {
+    mouse_pos := rl.GetMousePosition()
+    //Reversed because this is the rendering order and we want to select the top one first
+    //TODO: consider just using index to iterate?
+    #reverse for card, card_index in pile {
+        card_width := f32(card.texture.width * card.scale)
+        card_height := f32(card.texture.height * card.scale)
+
+        if mouse_pos.x >= card.position.x &&
+           mouse_pos.x <= (card.position.x + card_width) &&
+           mouse_pos.y >= card.position.y &&
+           mouse_pos.y <= (card.position.y + card_height) &&
+           card.clickable {
+            //Copy the clicked slice
+            clicked_slice := pile[card_index:len(pile)]
+            clicked_slice_copy := make([dynamic]Card, len(clicked_slice))
+            copy(clicked_slice_copy[:], clicked_slice[:])
+
+            //Delete from current pile
+            remove_range(pile, card_index, len(pile))
+
+            return clicked_slice_copy, true
         }
     }
-
     return nil, false
 }
 
+get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Card) -> (^[dynamic]Card, bool) {
+    overlapped: bool
+
+    overlapped = find_overlapped_pile(&game_board.stock_pile, moving_cards)
+    if overlapped {
+        return &game_board.stock_pile, overlapped
+    }
+
+    for i in 0..<len(game_board.tableau) {
+        overlapped = find_overlapped_pile(&game_board.tableau[i], moving_cards)
+        if overlapped {
+            return &game_board.tableau[i], overlapped
+        }
+    }
+    for i in 0..<len(game_board.foundation) {
+        overlapped = find_overlapped_pile(&game_board.foundation[i], moving_cards)
+        if overlapped {
+            return &game_board.foundation[i], overlapped
+        }
+    }
+    return nil, false
+}
+
+find_overlapped_pile :: proc(pile: ^[dynamic]Card, moving_cards: ^[dynamic]Card) -> (bool) {
+    if moving_cards == nil || len(moving_cards) == 0 {
+        return false
+    }
+
+    //only check if the top card is hoverover over another pile
+    top_card := moving_cards[0]
+
+    //Reversed because this is the rendering order and we want to select the top one first
+    #reverse for card in pile {
+        card_width := f32(card.texture.width * card.scale)
+        card_height := f32(card.texture.height * card.scale)
+
+        //todo: eventually check all 4 corners
+        if  top_card.position.x >= card.position.x &&
+            top_card.position.x <= (card.position.x + card_width) &&
+            top_card.position.y >= card.position.y &&
+            top_card.position.y <= (card.position.y + card_height) &&
+            card.stackable {
+            return true
+        }
+    }
+
+    return false
+}
+
 draw_cards :: proc(cards: ^[dynamic]Card) {
+    if cards == nil || len(cards) == 0 {
+        return
+    }
+
     for card in cards {
         card_width := f32(card.texture.width)
         card_height := f32(card.texture.height)
@@ -268,3 +265,144 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
         )
     }
 }
+
+setup_game_board :: proc(game_board: ^Game_Board) {
+    stock_pile: [dynamic]Card
+    append(&stock_pile, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 140, 25},
+        scale = 2,
+        clickable = false
+    })
+    append(&stock_pile, Card {
+        texture = rl.LoadTexture("images/card_clubs_09.png"),
+        position = rl.Vector2 { 170, 25 },
+        scale = 2,
+        clickable = false
+    })
+    append(&stock_pile, Card {
+        texture = rl.LoadTexture("images/card_diamonds_08.png"),
+        position = rl.Vector2 { 200, 25 },
+        scale = 2,
+        clickable = false
+    })
+    append(&stock_pile, Card {
+        texture = rl.LoadTexture("images/card_clubs_07.png"),
+        position = rl.Vector2 { 230, 25 },
+        scale = 2,
+        clickable = true,
+    })
+    game_board.stock_pile = stock_pile
+
+    //7 decks in tableau
+    tableau: [dynamic][dynamic]Card
+    tableau1: [dynamic]Card
+    append(&tableau1, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 340, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+
+    tableau2: [dynamic]Card
+    append(&tableau2, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 440, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    tableau3: [dynamic]Card
+    append(&tableau3, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 540, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    tableau4: [dynamic]Card
+    append(&tableau4, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 640, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    tableau5: [dynamic]Card
+    append(&tableau5, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 740, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    tableau6: [dynamic]Card
+    append(&tableau6, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 840, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    tableau7: [dynamic]Card
+    append(&tableau7, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 940, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+
+    append(&tableau, tableau1)
+    append(&tableau, tableau2)
+    append(&tableau, tableau3)
+    append(&tableau, tableau4)
+    append(&tableau, tableau5)
+    append(&tableau, tableau6)
+    append(&tableau, tableau7)
+    game_board.tableau = tableau
+
+    // 4 decks in foundation
+    foundation: [dynamic][dynamic]Card
+    foundation1: [dynamic]Card
+    append(&foundation1, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 140, 190 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    foundation2: [dynamic]Card
+    append(&foundation2, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 140, 320 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    foundation3: [dynamic]Card
+    append(&foundation3, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 140, 450 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    foundation4: [dynamic]Card
+    append(&foundation4, Card {
+        texture = rl.LoadTexture("images/card_back.png"),
+        position = rl.Vector2 { 140, 580 },
+        scale = 2,
+        clickable = false,
+        stackable = true
+    })
+    append(&foundation, foundation1)
+    append(&foundation, foundation2)
+    append(&foundation, foundation3)
+    append(&foundation, foundation4)
+    game_board.foundation = foundation
+}
+
+
+
