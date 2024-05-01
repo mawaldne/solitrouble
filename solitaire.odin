@@ -5,10 +5,12 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// Create a deck we can pull cards off of
-// Click on deck makes the waste open up 3 more cards
+//When you pull off deck, next card clickable...
 
 // Add the proper rules around snapping. Red on black with decreasing value.
+
+// Create a deck we can pull cards off of
+// Click on deck makes the waste open up 3 more cards
 
 // Create a nicer way to load cards
 // Shuffle into a deck - shuffle function
@@ -278,26 +280,89 @@ setup_game_board :: proc(game_board: ^Game_Board) {
     add_card_pile(&stock_pile, "images/card_clubs_07.png", 3, 2, true, false)
     game_board.stock_pile = stock_pile
 
-    //TODO 7 decks in tableau
+    //7 decks in tableau
     tableau1 := Pile {
        position = rl.Vector2 { 340, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
     add_card_pile(&tableau1, "images/card_back.png", 0, 2, false, true)
 
+    tableau2 := Pile {
+       position = rl.Vector2 { 440, 190 },
+       stack_direction = rl.Vector2 { 0, 30 }
+    }
+    add_card_pile(&tableau2, "images/card_back.png", 0, 2, false, true)
+
+    tableau3 := Pile {
+       position = rl.Vector2 { 540, 190 },
+       stack_direction = rl.Vector2 { 0, 30 }
+    }
+    add_card_pile(&tableau3, "images/card_back.png", 0, 2, false, true)
+
+    tableau4 := Pile {
+       position = rl.Vector2 { 640, 190 },
+       stack_direction = rl.Vector2 { 0, 30 }
+    }
+    add_card_pile(&tableau4, "images/card_back.png", 0, 2, false, true)
+
+    tableau5 := Pile {
+       position = rl.Vector2 { 740, 190 },
+       stack_direction = rl.Vector2 { 0, 30 }
+    }
+    add_card_pile(&tableau5, "images/card_back.png", 0, 2, false, true)
+
+    tableau6 := Pile {
+       position = rl.Vector2 { 840, 190 },
+       stack_direction = rl.Vector2 { 0, 30 }
+    }
+    add_card_pile(&tableau6, "images/card_back.png", 0, 2, false, true)
+
+    tableau7 := Pile {
+       position = rl.Vector2 { 940, 190 },
+       stack_direction = rl.Vector2 { 0, 30 }
+    }
+    add_card_pile(&tableau7, "images/card_back.png", 0, 2, false, true)
+
     tableau: [dynamic]Pile
     append(&tableau, tableau1)
+    append(&tableau, tableau2)
+    append(&tableau, tableau3)
+    append(&tableau, tableau4)
+    append(&tableau, tableau5)
+    append(&tableau, tableau6)
+    append(&tableau, tableau7)
     game_board.tableau = tableau
 
-    //TODO 4 decks in foundation
+    //4 decks in foundation
     foundation1 := Pile {
        position = rl.Vector2 { 140, 190 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
     add_card_pile(&foundation1, "images/card_back.png", 0, 2, false, true)
 
+    foundation2 := Pile {
+       position = rl.Vector2 { 140, 320 },
+       stack_direction = rl.Vector2 { 0, 0 }
+    }
+    add_card_pile(&foundation2, "images/card_back.png", 0, 2, false, true)
+
+    foundation3 := Pile {
+       position = rl.Vector2 { 140, 450 },
+       stack_direction = rl.Vector2 { 0, 0 }
+    }
+    add_card_pile(&foundation3, "images/card_back.png", 0, 2, false, true)
+
+    foundation4 := Pile {
+       position = rl.Vector2 { 140, 580 },
+       stack_direction = rl.Vector2 { 0, 0 }
+    }
+    add_card_pile(&foundation4, "images/card_back.png", 0, 2, false, true)
+
     foundation: [dynamic]Pile
     append(&foundation, foundation1)
+    append(&foundation, foundation2)
+    append(&foundation, foundation3)
+    append(&foundation, foundation4)
     game_board.foundation = foundation
 }
 
