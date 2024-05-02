@@ -5,7 +5,7 @@ import "core:fmt"
 
 // Solitaire todo:
 
-//When you pull off deck, next card clickable...
+//Fix moving card stacking bug
 
 // Add the proper rules around snapping. Red on black with decreasing value.
 
@@ -37,10 +37,7 @@ Card :: struct {
     texture: rl.Texture2D,
     position: rl.Vector2,
     scale: i32,
-
-    // Can click this card
     clickable: bool,
-    // Can have cards stacked on it
     stackable: bool
 }
 
@@ -100,16 +97,22 @@ main :: proc() {
                 //Get the last card in the stack
                 last_card_position := next_pile.cards[len(next_pile.cards) - 1].position
                 for i in 0..<len(moving_cards) {
-                    moving_cards[i].position = last_card_position + next_pile.stack_direction
+                    moving_cards[i].position = last_card_position + (next_pile.stack_direction * f32(1 + i))
                     moving_cards[i].stackable = true
                     moving_cards[i].clickable = true
                 }
                 over_pile = false
+
+                //This makes the stock pile last card clickable
+                if len(previous_pile.cards) > 1 {
+                    previous_pile.cards[len(previous_pile.cards) - 1].clickable = true
+                }
+
                 append(&next_pile.cards, ..moving_cards[:])
             } else if moving_cards != nil {
                 last_card_position := previous_pile.cards[len(previous_pile.cards) - 1].position
                 for i in 0..<len(moving_cards) {
-                    moving_cards[i].position = last_card_position + previous_pile.stack_direction
+                    moving_cards[i].position = last_card_position + (previous_pile.stack_direction * f32(1 + i))
                 }
                 append(&previous_pile.cards, ..moving_cards[:])
             }
@@ -191,10 +194,10 @@ find_clicked_cards :: proc(pile: ^[dynamic]Card) -> ([dynamic]Card, bool) {
 get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Card) -> (^Pile, bool) {
     overlapped: bool
 
-    overlapped = find_overlapped_pile(&game_board.stock_pile.cards, moving_cards)
-    if overlapped {
-        return &game_board.stock_pile, overlapped
-    }
+    // overlapped = find_overlapped_pile(&game_board.stock_pile.cards, moving_cards)
+    // if overlapped {
+    //     return &game_board.stock_pile, overlapped
+    // }
 
     for i in 0..<len(game_board.tableau) {
         overlapped = find_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
@@ -202,10 +205,12 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
             return &game_board.tableau[i], overlapped
         }
     }
-    for i in 0..<len(game_board.foundation) {
-        overlapped = find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
-        if overlapped {
-            return &game_board.foundation[i], overlapped
+    if (len(moving_cards) == 1) {
+        for i in 0..<len(game_board.foundation) {
+            overlapped = find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
+            if overlapped {
+                return &game_board.foundation[i], overlapped
+            }
         }
     }
     return nil, false
@@ -216,25 +221,21 @@ find_overlapped_pile :: proc(cards: ^[dynamic]Card, moving_cards: ^[dynamic]Card
         return false
     }
 
-    //only check if the top card is hoverover over another pile
-    top_card := moving_cards[0]
+    //only check if the bottom card is hoverover over another pile
+    bottom_moving_card := moving_cards[0]
 
-    //Reversed because this is the rendering order and we want to select the top one first
-    #reverse for card in cards {
-        card_width := f32(card.texture.width * card.scale)
-        card_height := f32(card.texture.height * card.scale)
+    //Only check the last card (top card) in the pile
+    top_card_pile := cards[len(cards) - 1]
 
-        //todo: eventually check all 4 corners
-        if  top_card.position.x >= card.position.x &&
-            top_card.position.x <= (card.position.x + card_width) &&
-            top_card.position.y >= card.position.y &&
-            top_card.position.y <= (card.position.y + card_height) &&
-            card.stackable {
-            return true
-        }
-    }
+    top_card_pile_width := f32(top_card_pile.texture.width * top_card_pile.scale)
+    top_card_pile_height := f32(top_card_pile.texture.height * top_card_pile.scale)
 
-    return false
+    //todo: eventually check all 4 corners
+    return bottom_moving_card.position.x >= top_card_pile.position.x &&
+        bottom_moving_card.position.x <= (top_card_pile.position.x + top_card_pile_width) &&
+        bottom_moving_card.position.y >= top_card_pile.position.y &&
+        bottom_moving_card.position.y <= (top_card_pile.position.y + top_card_pile_height) &&
+        top_card_pile.stackable
 }
 
 draw_cards :: proc(cards: ^[dynamic]Card) {
