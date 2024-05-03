@@ -5,14 +5,12 @@ import "core:fmt"
 
 // Solitaire todo:
 
-//Fix moving card stacking bug
-
 // Add the proper rules around snapping. Red on black with decreasing value.
 
 // Create a deck we can pull cards off of
+// Create all the cards in each tableau. Make sure clickable states are correct.
 // Click on deck makes the waste open up 3 more cards
 
-// Create a nicer way to load cards
 // Shuffle into a deck - shuffle function
 
 // WINNING STATE! How do you win
@@ -28,17 +26,19 @@ import "core:fmt"
 
 // Screen size. Full screen and changing scale of things?
 
-  //TODO - Now you need to check each stack in the game state object? Which stack did you click on. And what is the previous stack. etc
-    //Note, you usually only need to check the last card of each stack. That is the only place you will over over fyi...
-    //You can click on other cards though... OH WAIT. at the start of the game, all certain cards are not clickable either unless they match
-    //rules...So you will need to keep that state up to date too! ARG...
+CardColor :: enum{Red, Black}
+
+CARD_SCALE :: 2
 
 Card :: struct {
     texture: rl.Texture2D,
     position: rl.Vector2,
-    scale: i32,
+
     clickable: bool,
-    stackable: bool
+    stackable: bool,
+
+    rank: u8,
+    color: CardColor
 }
 
 Pile :: struct {
@@ -60,9 +60,7 @@ main :: proc() {
     setup_game_board(&game_board)
 
     //TODO?
-    //defer delete(game_board.stock_pile)
-    //defer delete(game_board.tableau)
-    //defer delete(game_board.foundation)
+    //Clean up memory?
 
     rl.SetTargetFPS(60)
 
@@ -169,8 +167,8 @@ find_clicked_cards :: proc(pile: ^[dynamic]Card) -> ([dynamic]Card, bool) {
     //Reversed because this is the rendering order and we want to select the top one first
     //TODO: consider just using index to iterate?
     #reverse for card, card_index in pile {
-        card_width := f32(card.texture.width * card.scale)
-        card_height := f32(card.texture.height * card.scale)
+        card_width := f32(card.texture.width * CARD_SCALE)
+        card_height := f32(card.texture.height * CARD_SCALE)
 
         if mouse_pos.x >= card.position.x &&
            mouse_pos.x <= (card.position.x + card_width) &&
@@ -193,21 +191,26 @@ find_clicked_cards :: proc(pile: ^[dynamic]Card) -> ([dynamic]Card, bool) {
 
 get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Card) -> (^Pile, bool) {
     overlapped: bool
-
-    // overlapped = find_overlapped_pile(&game_board.stock_pile.cards, moving_cards)
-    // if overlapped {
-    //     return &game_board.stock_pile, overlapped
-    // }
+    top_card_pile: Card
+    bottom_moving_card: Card
 
     for i in 0..<len(game_board.tableau) {
-        overlapped = find_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
-        if overlapped {
+        overlapped, top_card_pile, bottom_moving_card =
+            find_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
+        //todo Probably not the right spot for this?
+        if overlapped &&
+            (len(&game_board.tableau[i].cards) == 1 ||
+            (top_card_pile.color == CardColor.Red && bottom_moving_card.color == CardColor.Black) ||
+            (top_card_pile.color == CardColor.Black && bottom_moving_card.color == CardColor.Red)) &&
+            bottom_moving_card.rank < top_card_pile.rank {
             return &game_board.tableau[i], overlapped
         }
     }
     if (len(moving_cards) == 1) {
         for i in 0..<len(game_board.foundation) {
-            overlapped = find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
+            overlapped, top_card_pile, bottom_moving_card =
+                find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
+            //Check foundation stacking rules...
             if overlapped {
                 return &game_board.foundation[i], overlapped
             }
@@ -216,9 +219,9 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
     return nil, false
 }
 
-find_overlapped_pile :: proc(cards: ^[dynamic]Card, moving_cards: ^[dynamic]Card) -> (bool) {
+find_overlapped_pile :: proc(cards: ^[dynamic]Card, moving_cards: ^[dynamic]Card) -> (bool, Card, Card) {
     if moving_cards == nil || len(moving_cards) == 0 {
-        return false
+        return false, Card {}, Card {}
     }
 
     //only check if the bottom card is hoverover over another pile
@@ -227,16 +230,20 @@ find_overlapped_pile :: proc(cards: ^[dynamic]Card, moving_cards: ^[dynamic]Card
     //Only check the last card (top card) in the pile
     top_card_pile := cards[len(cards) - 1]
 
-    top_card_pile_width := f32(top_card_pile.texture.width * top_card_pile.scale)
-    top_card_pile_height := f32(top_card_pile.texture.height * top_card_pile.scale)
+    top_card_pile_width := f32(top_card_pile.texture.width * CARD_SCALE)
+    top_card_pile_height := f32(top_card_pile.texture.height * CARD_SCALE)
 
     //todo: eventually check all 4 corners
-    return bottom_moving_card.position.x >= top_card_pile.position.x &&
+    if (bottom_moving_card.position.x >= top_card_pile.position.x &&
         bottom_moving_card.position.x <= (top_card_pile.position.x + top_card_pile_width) &&
         bottom_moving_card.position.y >= top_card_pile.position.y &&
         bottom_moving_card.position.y <= (top_card_pile.position.y + top_card_pile_height) &&
-        top_card_pile.stackable
+        top_card_pile.stackable) {
+            return true, top_card_pile, bottom_moving_card
+        }
+        return false, Card {}, Card {}
 }
+
 
 draw_cards :: proc(cards: ^[dynamic]Card) {
     if cards == nil || len(cards) == 0 {
@@ -257,8 +264,8 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
         draw_player_dest := rl.Rectangle {
             x = card.position.x,
             y = card.position.y,
-            width = card_width * f32(card.scale),
-            height = card_height * f32(card.scale),
+            width = card_width * f32(CARD_SCALE),
+            height = card_height * f32(CARD_SCALE),
         }
 
         rl.DrawTexturePro(
@@ -275,10 +282,14 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 140, 25 },
        stack_direction = rl.Vector2 { 30, 0 }
     }
-    add_card_pile(&stock_pile, "images/card_back.png", 0, 2, false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_09.png", 1, 2, false, false)
-    add_card_pile(&stock_pile, "images/card_diamonds_08.png", 2, 2, false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_07.png", 3, 2, true, false)
+    add_card_pile(&stock_pile, "images/card_back.png", 0, 14, CardColor.Black,false, false)
+    add_card_pile(&stock_pile, "images/cards_diamonds_A.png", 1, 1, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_02.png", 2, 2, CardColor.Black,false, false)
+    add_card_pile(&stock_pile, "images/card_diamonds_03.png", 3, 3, CardColor.Red, true, false)
+    add_card_pile(&stock_pile, "images/card_clubs_04.png", 4, 4, CardColor.Black, true, false)
+    add_card_pile(&stock_pile, "images/card_diamonds_05.png", 5, 5, CardColor.Red, true, false)
+    add_card_pile(&stock_pile, "images/card_clubs_06.png", 6, 6, CardColor.Black, true, false)
+    //...Add more cards...
     game_board.stock_pile = stock_pile
 
     //7 decks in tableau
@@ -286,43 +297,43 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 340, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau1, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau1, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau2 := Pile {
        position = rl.Vector2 { 440, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau2, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau2, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau3 := Pile {
        position = rl.Vector2 { 540, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau3, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau3, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau4 := Pile {
        position = rl.Vector2 { 640, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau4, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau4, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau5 := Pile {
        position = rl.Vector2 { 740, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau5, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau5, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau6 := Pile {
        position = rl.Vector2 { 840, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau6, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau6, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau7 := Pile {
        position = rl.Vector2 { 940, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau7, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&tableau7, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     tableau: [dynamic]Pile
     append(&tableau, tableau1)
@@ -339,25 +350,25 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 140, 190 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation1, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&foundation1, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     foundation2 := Pile {
        position = rl.Vector2 { 140, 320 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation2, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&foundation2, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     foundation3 := Pile {
        position = rl.Vector2 { 140, 450 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation3, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&foundation3, "images/card_back.png", 0, 14, CardColor.Black,false, true)
 
     foundation4 := Pile {
        position = rl.Vector2 { 140, 580 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation4, "images/card_back.png", 0, 2, false, true)
+    add_card_pile(&foundation4, "images/card_back.png", 0, 14, CardColor.Black, false, true)
 
     foundation: [dynamic]Pile
     append(&foundation, foundation1)
@@ -372,14 +383,16 @@ add_card_pile :: proc(
     pile: ^Pile,
     texture_name: cstring,
     card_position: f32,
-    scale: i32,
+    rank: u8,
+    color: CardColor,
     clickable: bool,
     stackable: bool
 ) {
     append(&pile.cards, Card {
         texture = rl.LoadTexture(texture_name),
         position = pile.position + (pile.stack_direction * card_position),
-        scale = scale,
+        rank = rank,
+        color = color,
         clickable = clickable,
         stackable = stackable
     })
