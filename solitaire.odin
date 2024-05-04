@@ -225,10 +225,10 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
             find_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
         if overlapped &&
             //Basic stacking game rules here!
-            (len(&game_board.tableau[i].cards) == 1 ||
-            (top_card_pile.color == Card_Color.Red && bottom_moving_card.color == Card_Color.Black) ||
-            (top_card_pile.color == Card_Color.Black && bottom_moving_card.color == Card_Color.Red)) &&
-            bottom_moving_card.rank < top_card_pile.rank {
+            (len(&game_board.tableau[i].cards) == 1) ||
+            (((top_card_pile.color == Card_Color.Red && bottom_moving_card.color == Card_Color.Black) ||
+             (top_card_pile.color == Card_Color.Black && bottom_moving_card.color == Card_Color.Red)) &&
+              top_card_pile.rank == (bottom_moving_card.rank + 1)) {
             return &game_board.tableau[i], overlapped
         }
     }
@@ -307,9 +307,7 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
 
 setup_game_board :: proc(game_board: ^Game_Board) {
     //Shuffle the deck
-    fmt.printf("%v\n", Deck_Texture_Names)
     rand.shuffle(Deck_Texture_Names[:])
-    fmt.println(Deck_Texture_Names) // the contents have been shuffled
 
     stock_pile := Pile {
        position = rl.Vector2 { 140, 25 },
