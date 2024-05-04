@@ -2,16 +2,16 @@ package game
 
 import rl "vendor:raylib"
 import "core:fmt"
+import "core:slice"
+import "core:strings"
+import "core:math/rand"
+
+
 
 // Solitaire todo:
 
-// Add the proper rules around snapping. Red on black with decreasing value.
-
-// Create a deck we can pull cards off of
 // Create all the cards in each tableau. Make sure clickable states are correct.
 // Click on deck makes the waste open up 3 more cards
-
-// Shuffle into a deck - shuffle function
 
 // WINNING STATE! How do you win
 
@@ -26,7 +26,33 @@ import "core:fmt"
 
 // Screen size. Full screen and changing scale of things?
 
-CardColor :: enum{Red, Black}
+// Deck_Texture_Names := [dynamic]string {
+//     "card_clubs_02.png", "card_clubs_03.png", "card_clubs_04.png", "card_clubs_05.png", "card_clubs_06.png",
+//     "card_clubs_07.png", "card_clubs_08.png", "card_clubs_09.png", "card_clubs_10.png", "card_clubs_A.png",
+//     "card_clubs_J.png", "card_clubs_K.png", "card_clubs_Q.png", "card_diamonds_02.png",
+//     "card_diamonds_03.png", "card_diamonds_04.png", "card_diamonds_05.png", "card_diamonds_06.png",
+//     "card_diamonds_07.png", "card_diamonds_08.png", "card_diamonds_09.png", "card_diamonds_10.png",
+//     "card_diamonds_A.png", "card_diamonds_J.png", "card_diamonds_K.png", "card_diamonds_Q.png",
+//     "card_hearts_02.png", "card_hearts_03.png", "card_hearts_04.png", "card_hearts_05.png",
+//     "card_hearts_06.png", "card_hearts_07.png", "card_hearts_08.png", "card_hearts_09.png",
+//     "card_hearts_10.png", "card_hearts_A.png", "card_hearts_J.png", "card_hearts_K.png",
+//     "card_hearts_Q.png", "card_spades_02.png", "card_spades_03.png", "card_spades_04.png",
+//     "card_spades_05.png", "card_spades_06.png", "card_spades_07.png", "card_spades_08.png",
+//     "card_spades_09.png", "card_spades_10.png", "card_spades_A.png", "card_spades_J.png",
+//     "card_spades_K.png", "card_spades_Q.png"
+// }
+
+Deck_Texture_Names := [dynamic]string {
+    "card_clubs_02.png", "card_clubs_03.png", "card_clubs_04.png", "card_clubs_05.png", "card_clubs_06.png",
+    "card_clubs_07.png", "card_clubs_08.png", "card_clubs_09.png", "card_clubs_10.png", "card_clubs_A.png",
+    "card_clubs_J.png", "card_clubs_K.png", "card_clubs_Q.png", "card_diamonds_02.png",
+    "card_diamonds_03.png", "card_diamonds_04.png", "card_diamonds_05.png", "card_diamonds_06.png",
+    "card_diamonds_07.png", "card_diamonds_08.png", "card_diamonds_09.png", "card_diamonds_10.png",
+    "card_diamonds_A.png", "card_diamonds_J.png", "card_diamonds_K.png", "card_diamonds_Q.png"
+}
+
+
+Card_Color :: enum{Red, Black, None}
 
 CARD_SCALE :: 2
 
@@ -38,7 +64,7 @@ Card :: struct {
     stackable: bool,
 
     rank: u8,
-    color: CardColor
+    color: Card_Color
 }
 
 Pile :: struct {
@@ -197,11 +223,11 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
     for i in 0..<len(game_board.tableau) {
         overlapped, top_card_pile, bottom_moving_card =
             find_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
-        //todo Probably not the right spot for this?
         if overlapped &&
+            //Basic stacking game rules here!
             (len(&game_board.tableau[i].cards) == 1 ||
-            (top_card_pile.color == CardColor.Red && bottom_moving_card.color == CardColor.Black) ||
-            (top_card_pile.color == CardColor.Black && bottom_moving_card.color == CardColor.Red)) &&
+            (top_card_pile.color == Card_Color.Red && bottom_moving_card.color == Card_Color.Black) ||
+            (top_card_pile.color == Card_Color.Black && bottom_moving_card.color == Card_Color.Red)) &&
             bottom_moving_card.rank < top_card_pile.rank {
             return &game_board.tableau[i], overlapped
         }
@@ -212,6 +238,7 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
                 find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
 
             if overlapped &&
+                //Basic stacking game rules!
                 (len(&game_board.foundation[i].cards) == 1 || top_card_pile.color == bottom_moving_card.color) &&
                 (top_card_pile.rank + 1) == bottom_moving_card.rank {
                 return &game_board.foundation[i], overlapped
@@ -279,52 +306,21 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
 }
 
 setup_game_board :: proc(game_board: ^Game_Board) {
+    //Shuffle the deck
+    fmt.printf("%v\n", Deck_Texture_Names)
+    rand.shuffle(Deck_Texture_Names[:])
+    fmt.println(Deck_Texture_Names) // the contents have been shuffled
 
     stock_pile := Pile {
        position = rl.Vector2 { 140, 25 },
        stack_direction = rl.Vector2 { 30, 0 }
     }
-    add_card_pile(&stock_pile, "images/card_back.png", 14, CardColor.Black,false, false)
 
-    add_card_pile(&stock_pile, "images/card_diamonds_A.png", 1, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_A.png", 1, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_02.png", 2, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_02.png", 2, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_03.png", 3, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_03.png", 3, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_04.png", 4, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_04.png", 4, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_05.png", 5, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_05.png", 5, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_06.png", 6, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_06.png", 6, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_07.png", 7, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_07.png", 7, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_08.png", 8, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_08.png", 8, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_09.png", 9, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_09.png", 9, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_10.png", 10, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_10.png", 10, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_J.png", 11, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_J.png", 11, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_Q.png", 12, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_Q.png", 12, CardColor.Black,false, false)
-
-    add_card_pile(&stock_pile, "images/card_diamonds_K.png", 13, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_K.png", 13, CardColor.Black,true, false)
-
+    add_card_pile(&stock_pile, "card_back_stock.png")
+    for i in 0..<len(Deck_Texture_Names) {
+        add_card_pile(&stock_pile, Deck_Texture_Names[i]);
+    }
+    stock_pile.cards[len(stock_pile.cards) - 1].clickable = true
     game_board.stock_pile = stock_pile
 
     //7 decks in tableau
@@ -332,43 +328,43 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 340, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau1, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau1, "card_back_tableau.png")
 
     tableau2 := Pile {
        position = rl.Vector2 { 440, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau2, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau2, "card_back_tableau.png")
 
     tableau3 := Pile {
        position = rl.Vector2 { 540, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau3, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau3, "card_back_tableau.png")
 
     tableau4 := Pile {
        position = rl.Vector2 { 640, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau4, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau4, "card_back_tableau.png")
 
     tableau5 := Pile {
        position = rl.Vector2 { 740, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau5, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau5, "card_back_tableau.png")
 
     tableau6 := Pile {
        position = rl.Vector2 { 840, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau6, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau6, "card_back_tableau.png")
 
     tableau7 := Pile {
        position = rl.Vector2 { 940, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau7, "images/card_back.png", 14, CardColor.Black,false, true)
+    add_card_pile(&tableau7, "card_back_tableau.png")
 
     tableau: [dynamic]Pile
     append(&tableau, tableau1)
@@ -385,25 +381,25 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 140, 190 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation1, "images/card_back.png", 0, CardColor.Black,false, true)
+    add_card_pile(&foundation1, "card_back_foundation.png")
 
     foundation2 := Pile {
        position = rl.Vector2 { 140, 320 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation2, "images/card_back.png", 0, CardColor.Black,false, true)
+    add_card_pile(&foundation2, "card_back_foundation.png")
 
     foundation3 := Pile {
        position = rl.Vector2 { 140, 450 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation3, "images/card_back.png", 0, CardColor.Black,false, true)
+    add_card_pile(&foundation3, "card_back_foundation.png")
 
     foundation4 := Pile {
        position = rl.Vector2 { 140, 580 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation4, "images/card_back.png", 0, CardColor.Black, false, true)
+    add_card_pile(&foundation4, "card_back_foundation.png")
 
     foundation: [dynamic]Pile
     append(&foundation, foundation1)
@@ -416,18 +412,70 @@ setup_game_board :: proc(game_board: ^Game_Board) {
 
 add_card_pile :: proc(
     pile: ^Pile,
-    texture_name: cstring,
-    rank: u8,
-    color: CardColor,
-    clickable: bool,
-    stackable: bool
+    texture_name: string
 ) {
+    absolute_texture_file := strings.concatenate({"images/", texture_name})
+
+    color: Card_Color
+    rank: u8
+    stackable: bool
+
+    clubs := strings.contains(texture_name, "club")
+    heart := strings.contains(texture_name, "heart")
+    diamond := strings.contains(texture_name, "diamond")
+    spade := strings.contains(texture_name, "spade")
+
+    if diamond || heart {
+        color = Card_Color.Red
+    } else if clubs || spade {
+        color = Card_Color.Black
+    } else {
+        color = Card_Color.None
+    }
+
+    if strings.contains(texture_name, "_foundation") {
+        rank = 0
+        stackable = true
+    } else if strings.contains(texture_name, "_A") {
+        rank = 1
+    } else if strings.contains(texture_name, "_02") {
+        rank = 2
+    } else if strings.contains(texture_name, "_03") {
+        rank = 3
+    } else if strings.contains(texture_name, "_04") {
+        rank = 4
+    } else if strings.contains(texture_name, "_05") {
+        rank = 5
+    } else if strings.contains(texture_name, "_06") {
+        rank = 6
+    } else if strings.contains(texture_name, "_07") {
+        rank = 7
+    } else if strings.contains(texture_name, "_08") {
+        rank = 8
+    } else if strings.contains(texture_name, "_09") {
+        rank = 9
+    } else if strings.contains(texture_name, "_10") {
+        rank = 10
+    } else if strings.contains(texture_name, "_J") {
+        rank = 11
+    } else if strings.contains(texture_name, "_Q") {
+        rank = 12
+    } else if strings.contains(texture_name, "_K") {
+        rank = 13
+    } else if strings.contains(texture_name, "_tableau") {
+        rank = 14
+        stackable = true
+    } else if strings.contains(texture_name, "_stock") {
+        rank = 14
+    }
+
     append(&pile.cards, Card {
-        texture = rl.LoadTexture(texture_name),
+        texture = rl.LoadTexture(strings.clone_to_cstring(absolute_texture_file)),
         position = pile.position + (pile.stack_direction * f32(len(pile.cards))),
         rank = rank,
         color = color,
-        clickable = clickable,
         stackable = stackable
     })
 }
+
+
