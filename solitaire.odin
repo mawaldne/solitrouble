@@ -210,8 +210,10 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
         for i in 0..<len(game_board.foundation) {
             overlapped, top_card_pile, bottom_moving_card =
                 find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
-            //Check foundation stacking rules...
-            if overlapped {
+
+            if overlapped &&
+                (len(&game_board.foundation[i].cards) == 1 || top_card_pile.color == bottom_moving_card.color) &&
+                (top_card_pile.rank + 1) == bottom_moving_card.rank {
                 return &game_board.foundation[i], overlapped
             }
         }
@@ -282,14 +284,47 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 140, 25 },
        stack_direction = rl.Vector2 { 30, 0 }
     }
-    add_card_pile(&stock_pile, "images/card_back.png", 0, 14, CardColor.Black,false, false)
-    add_card_pile(&stock_pile, "images/cards_diamonds_A.png", 1, 1, CardColor.Red,false, false)
-    add_card_pile(&stock_pile, "images/card_clubs_02.png", 2, 2, CardColor.Black,false, false)
-    add_card_pile(&stock_pile, "images/card_diamonds_03.png", 3, 3, CardColor.Red, true, false)
-    add_card_pile(&stock_pile, "images/card_clubs_04.png", 4, 4, CardColor.Black, true, false)
-    add_card_pile(&stock_pile, "images/card_diamonds_05.png", 5, 5, CardColor.Red, true, false)
-    add_card_pile(&stock_pile, "images/card_clubs_06.png", 6, 6, CardColor.Black, true, false)
-    //...Add more cards...
+    add_card_pile(&stock_pile, "images/card_back.png", 14, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_A.png", 1, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_A.png", 1, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_02.png", 2, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_02.png", 2, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_03.png", 3, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_03.png", 3, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_04.png", 4, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_04.png", 4, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_05.png", 5, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_05.png", 5, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_06.png", 6, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_06.png", 6, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_07.png", 7, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_07.png", 7, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_08.png", 8, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_08.png", 8, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_09.png", 9, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_09.png", 9, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_10.png", 10, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_10.png", 10, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_J.png", 11, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_J.png", 11, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_Q.png", 12, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_Q.png", 12, CardColor.Black,false, false)
+
+    add_card_pile(&stock_pile, "images/card_diamonds_K.png", 13, CardColor.Red,false, false)
+    add_card_pile(&stock_pile, "images/card_clubs_K.png", 13, CardColor.Black,true, false)
+
     game_board.stock_pile = stock_pile
 
     //7 decks in tableau
@@ -297,43 +332,43 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 340, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau1, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau1, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau2 := Pile {
        position = rl.Vector2 { 440, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau2, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau2, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau3 := Pile {
        position = rl.Vector2 { 540, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau3, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau3, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau4 := Pile {
        position = rl.Vector2 { 640, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau4, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau4, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau5 := Pile {
        position = rl.Vector2 { 740, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau5, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau5, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau6 := Pile {
        position = rl.Vector2 { 840, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau6, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau6, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau7 := Pile {
        position = rl.Vector2 { 940, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
-    add_card_pile(&tableau7, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&tableau7, "images/card_back.png", 14, CardColor.Black,false, true)
 
     tableau: [dynamic]Pile
     append(&tableau, tableau1)
@@ -350,25 +385,25 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        position = rl.Vector2 { 140, 190 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation1, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&foundation1, "images/card_back.png", 0, CardColor.Black,false, true)
 
     foundation2 := Pile {
        position = rl.Vector2 { 140, 320 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation2, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&foundation2, "images/card_back.png", 0, CardColor.Black,false, true)
 
     foundation3 := Pile {
        position = rl.Vector2 { 140, 450 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation3, "images/card_back.png", 0, 14, CardColor.Black,false, true)
+    add_card_pile(&foundation3, "images/card_back.png", 0, CardColor.Black,false, true)
 
     foundation4 := Pile {
        position = rl.Vector2 { 140, 580 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    add_card_pile(&foundation4, "images/card_back.png", 0, 14, CardColor.Black, false, true)
+    add_card_pile(&foundation4, "images/card_back.png", 0, CardColor.Black, false, true)
 
     foundation: [dynamic]Pile
     append(&foundation, foundation1)
@@ -382,7 +417,6 @@ setup_game_board :: proc(game_board: ^Game_Board) {
 add_card_pile :: proc(
     pile: ^Pile,
     texture_name: cstring,
-    card_position: f32,
     rank: u8,
     color: CardColor,
     clickable: bool,
@@ -390,7 +424,7 @@ add_card_pile :: proc(
 ) {
     append(&pile.cards, Card {
         texture = rl.LoadTexture(texture_name),
-        position = pile.position + (pile.stack_direction * card_position),
+        position = pile.position + (pile.stack_direction * f32(len(pile.cards))),
         rank = rank,
         color = color,
         clickable = clickable,
