@@ -1,18 +1,22 @@
 package game
 
 import rl "vendor:raylib"
-import "core:fmt"
 import "core:slice"
 import "core:strings"
 import "core:math/rand"
+import "core:fmt"
 
 
 
 // Solitaire todo:
 
+// have a stack represented with upside down cards.
+// Dont allow cards in continous stack to be clicked and moved!
+
 // Create all the cards in each tableau. Make sure clickable states are correct.
 // Click on deck makes the waste open up 3 more cards
 
+// MAYBE = Remove the empty card in each stack! just use the pile position for the starting card?
 // WINNING STATE! How do you win
 
 // Check the ALL 4 corners to see if they over lap another cards area?
@@ -25,6 +29,12 @@ import "core:math/rand"
 // Memory management? do we need to cleanup the array? tracking allocator?
 
 // Screen size. Full screen and changing scale of things?
+
+// Starting screens.
+// Help screen.
+// Reset game.
+
+
 
 // Deck_Texture_Names := [dynamic]string {
 //     "card_clubs_02.png", "card_clubs_03.png", "card_clubs_04.png", "card_clubs_05.png", "card_clubs_06.png",
@@ -74,7 +84,8 @@ Pile :: struct {
 }
 
 Game_Board :: struct {
-    stock_pile: Pile,
+    stock: Pile,
+    waste: Pile,
     tableau: [dynamic]Pile,
     foundation: [dynamic]Pile,
 }
@@ -90,6 +101,7 @@ main :: proc() {
 
     rl.SetTargetFPS(60)
 
+    stock_clicked: bool
     cards_moving: bool
     moving_cards: [dynamic]Card
 
@@ -100,8 +112,13 @@ main :: proc() {
     for !rl.WindowShouldClose() {
         if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
             if !cards_moving {
+                //Check if we clicked on stock pile. If so update waste pile with 3 new cards
+                stock_clicked = check_stock_clicked(&game_board)
+
+                //Otherwise get clicked card from the waste/tableaus (you can't take from the foundation)
                 moving_cards, previous_pile, cards_moving = get_clicked_cards(&game_board)
             }
+
         }
 
         if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
@@ -139,6 +156,27 @@ main :: proc() {
                     moving_cards[i].position = last_card_position + (previous_pile.stack_direction * f32(1 + i))
                 }
                 append(&previous_pile.cards, ..moving_cards[:])
+            } else if stock_clicked {
+
+                //Copy the clicked slice
+                if len(game_board.stock.cards) >= 3 {
+                    waste_cards := game_board.stock.cards[len(game_board.stock.cards) - 3:len(game_board.stock.cards)]
+                    waste_cards_copy := make([dynamic]Card, len(waste_cards))
+                    copy(waste_cards_copy[:], waste_cards[:])
+
+                    //Delete from current pile
+                    remove_range(&game_board.stock.cards,len(game_board.stock.cards) - 3, len(game_board.stock.cards))
+
+                    waste_bottom_card := bottom_card(&game_board.waste.cards)
+                    append(&game_board.waste.cards, ..waste_cards_copy[:])
+                    for i in 1..<len(game_board.waste.cards) {
+                        game_board.waste.cards[i].position = waste_bottom_card.position + (game_board.waste.stack_direction * f32(i))
+                        game_board.waste.cards[i].clickable = false
+                    }
+                    waste_top_card := top_card(&game_board.waste.cards)
+                    waste_top_card.clickable = true
+                }
+                stock_clicked = false
             }
             moving_cards = nil
         }
@@ -147,7 +185,8 @@ main :: proc() {
         rl.ClearBackground(rl.BLUE)
 
         //Draw all cards
-        draw_cards(&game_board.stock_pile.cards)
+        draw_cards(&game_board.stock.cards)
+        draw_cards(&game_board.waste.cards)
         for i in 0..<len(game_board.tableau) {
             draw_cards(&game_board.tableau[i].cards)
         }
@@ -163,25 +202,42 @@ main :: proc() {
     rl.CloseWindow()
 }
 
+top_card :: proc(cards: ^[dynamic]Card) -> (^Card) {
+    return &cards[len(cards) - 1]
+}
+
+bottom_card :: proc(cards: ^[dynamic]Card) -> (^Card) {
+    return &cards[0]
+}
+
+check_stock_clicked :: proc(game_board: ^Game_Board) -> (bool) {
+    mouse_pos := rl.GetMousePosition()
+
+    //Only check the last card (top card) in the pile
+    top_card_stock := game_board.stock.cards[len(game_board.stock.cards) - 1]
+
+    card_width := f32(top_card_stock.texture.width * CARD_SCALE)
+    card_height := f32(top_card_stock.texture.height * CARD_SCALE)
+
+    return mouse_pos.x >= top_card_stock.position.x &&
+       mouse_pos.x <= (top_card_stock.position.x + card_width) &&
+       mouse_pos.y >= top_card_stock.position.y &&
+       mouse_pos.y <= (top_card_stock.position.y + card_height)
+}
+
 get_clicked_cards :: proc(game_board: ^Game_Board) -> ([dynamic]Card, ^Pile, bool) {
     moving_cards: [dynamic]Card
     cards_moving: bool
 
-    moving_cards, cards_moving = find_clicked_cards(&game_board.stock_pile.cards)
+    moving_cards, cards_moving = find_clicked_cards(&game_board.waste.cards)
     if cards_moving {
-        return moving_cards, &game_board.stock_pile, cards_moving
+         return moving_cards, &game_board.waste, cards_moving
     }
 
     for i in 0..<len(game_board.tableau) {
         moving_cards, cards_moving = find_clicked_cards(&game_board.tableau[i].cards)
         if cards_moving {
             return moving_cards, &game_board.tableau[i], cards_moving
-        }
-    }
-    for i in 0..<len(game_board.foundation) {
-        moving_cards, cards_moving = find_clicked_cards(&game_board.foundation[i].cards)
-        if cards_moving {
-            return moving_cards, &game_board.foundation[i], cards_moving
         }
     }
     return nil, nil, false
@@ -222,7 +278,8 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
 
     for i in 0..<len(game_board.tableau) {
         overlapped, top_card_pile, bottom_moving_card =
-            find_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
+            check_if_overlapped_pile(&game_board.tableau[i].cards, moving_cards)
+
         if overlapped &&
             //Basic stacking game rules here!
             (len(&game_board.tableau[i].cards) == 1) ||
@@ -235,7 +292,7 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
     if (len(moving_cards) == 1) {
         for i in 0..<len(game_board.foundation) {
             overlapped, top_card_pile, bottom_moving_card =
-                find_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
+                check_if_overlapped_pile(&game_board.foundation[i].cards, moving_cards)
 
             if overlapped &&
                 //Basic stacking game rules!
@@ -248,7 +305,7 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
     return nil, false
 }
 
-find_overlapped_pile :: proc(cards: ^[dynamic]Card, moving_cards: ^[dynamic]Card) -> (bool, Card, Card) {
+check_if_overlapped_pile :: proc(cards: ^[dynamic]Card, moving_cards: ^[dynamic]Card) -> (bool, Card, Card) {
     if moving_cards == nil || len(moving_cards) == 0 {
         return false, Card {}, Card {}
     }
@@ -309,17 +366,26 @@ setup_game_board :: proc(game_board: ^Game_Board) {
     //Shuffle the deck
     rand.shuffle(Deck_Texture_Names[:])
 
-    stock_pile := Pile {
+    stock := Pile {
        position = rl.Vector2 { 140, 25 },
+       stack_direction = rl.Vector2 { 0, 0 }
+    }
+
+    add_card_pile(&stock, "card_back_stock.png")
+    for i in 0..<len(Deck_Texture_Names) {
+        add_card_pile(&stock, Deck_Texture_Names[i]);
+    }
+    //Only top card is clickable
+    stock.cards[len(stock.cards) - 1].clickable = true
+    game_board.stock = stock
+
+    waste := Pile {
+       position = rl.Vector2 { 230, 25 },
        stack_direction = rl.Vector2 { 30, 0 }
     }
 
-    add_card_pile(&stock_pile, "card_back_stock.png")
-    for i in 0..<len(Deck_Texture_Names) {
-        add_card_pile(&stock_pile, Deck_Texture_Names[i]);
-    }
-    stock_pile.cards[len(stock_pile.cards) - 1].clickable = true
-    game_board.stock_pile = stock_pile
+    add_card_pile(&waste, "card_back_waste.png")
+    game_board.waste = waste
 
     //7 decks in tableau
     tableau1 := Pile {
@@ -465,7 +531,10 @@ add_card_pile :: proc(
         stackable = true
     } else if strings.contains(texture_name, "_stock") {
         rank = 14
+    } else if strings.contains(texture_name, "_waste") {
+        rank = 14
     }
+
 
     append(&pile.cards, Card {
         texture = rl.LoadTexture(strings.clone_to_cstring(absolute_texture_file)),
