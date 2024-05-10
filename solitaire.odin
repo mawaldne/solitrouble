@@ -10,31 +10,20 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// have stack represented with upside down cards.
-// Layered the stack so looks like many cards.
-
-// Dont allow cards in continous stack to be clicked and moved!
-
+//Add all cards
 // Create all the cards in each tableau. Make sure clickable states are correct.
-// Click on deck makes the waste open up 3 more cards
-
 // WINNING STATE! How do you win
 
-// Check the ALL 4 corners to see if they over lap another cards area?
-
-// UNDO! how... array of things that happened? The stack name and the card that went there.
-// Reverse this array
-
+// ANIMATE CARDS going into tableau
+// Layered the stack so looks like many cards.
 // Nicer background
-
 // Memory management? do we need to cleanup the array? tracking allocator?
-
+// Check the ALL 4 corners to see if they over lap another cards area?
+// UNDO! how... array of things that happened? The stack name and the card that went there.
+// Reset game.
 // Screen size. Full screen and changing scale of things?
-
 // Starting screens.
 // Help screen.
-// Reset game.
-
 
 
 // Deck_Texture_Names := [dynamic]string {
