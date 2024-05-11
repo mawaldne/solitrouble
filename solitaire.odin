@@ -10,9 +10,8 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// Create all the cards in each tableau. Make sure clickable states are correct.
+// Change stock card when we are at 0. You need to be able to stack a card there!
 // WINNING STATE! How do you win
-//Change stock card when we are at 0
 
 // ANIMATE CARDS going into tableau
 // Layered the stack so looks like many cards.
@@ -54,7 +53,6 @@ Card :: struct {
     position: rl.Vector2,
 
     clickable: bool,
-    stackable: bool,
 
     rank: u8,
     color: Card_Color
@@ -80,9 +78,6 @@ main :: proc() {
     game_board: Game_Board
     setup_game_board(&game_board)
 
-    //TODO?
-    //Clean up memory?
-
     rl.SetTargetFPS(60)
 
     stock_clicked: bool
@@ -102,7 +97,6 @@ main :: proc() {
                 //Otherwise get clicked card from the waste/tableaus (you can't take from the foundation)
                 moving_cards, previous_pile, cards_moving = get_clicked_cards(&game_board)
             }
-
         }
 
         if rl.IsMouseButtonReleased(rl.MouseButton.LEFT) {
@@ -130,7 +124,6 @@ main :: proc() {
                     } else {
                         moving_cards[i].position = moving_cards[i - 1].position + next_pile.stack_direction
                     }
-                    moving_cards[i].stackable = true
                     moving_cards[i].clickable = true
                 }
                 over_pile = false
@@ -166,8 +159,6 @@ main :: proc() {
                     }
                     waste_top_card := top_card(&game_board.waste.cards)
                     waste_top_card.clickable = true
-                    print_cards(&game_board.stock.cards)
-                    print_cards(&game_board.waste.cards)
                 }
                 stock_clicked = false
             }
@@ -185,7 +176,6 @@ main :: proc() {
         for i in 0..<len(game_board.foundation) {
             draw_pile(&game_board.foundation[i])
         }
-
         //Draw all cards
         draw_cards(&game_board.stock.cards)
         draw_cards(&game_board.waste.cards)
@@ -195,9 +185,8 @@ main :: proc() {
         for i in 0..<len(game_board.foundation) {
             draw_cards(&game_board.foundation[i].cards)
         }
-
+        //Draw stock pile on top for now...
         draw_pile(&game_board.stock)
-
         //Draw the moving cards if exists
         draw_cards(&moving_cards)
 
@@ -335,10 +324,7 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
 
         top_card_pile := top_card(&game_board.tableau[i].cards)
         bottom_moving_card := bottom_card(moving_cards)
-        //Basic stacking game rules here!
-        if ((top_card_pile.color == Card_Color.Red && bottom_moving_card.color == Card_Color.Black) ||
-            (top_card_pile.color == Card_Color.Black && bottom_moving_card.color == Card_Color.Red)) &&
-            top_card_pile.rank == (bottom_moving_card.rank + 1) {
+        if stackable(top_card_pile, bottom_moving_card) {
             return &game_board.tableau[i], overlapped
         }
     }
@@ -390,18 +376,40 @@ check_if_overlapped_pile :: proc(pile: ^Pile, moving_cards: ^[dynamic]Card) -> (
     //Only check the last card (top card) in the pile
     top_card_pile := top_card(&pile.cards)
 
-    if (bottom_moving_card.position.x >= top_card_pile.position.x &&
+    if  bottom_moving_card.position.x >= top_card_pile.position.x &&
         bottom_moving_card.position.x <= (top_card_pile.position.x + CARD_WIDTH) &&
         bottom_moving_card.position.y >= top_card_pile.position.y &&
-        bottom_moving_card.position.y <= (top_card_pile.position.y + CARD_HEIGHT) &&
-        top_card_pile.stackable) {
+        bottom_moving_card.position.y <= (top_card_pile.position.y + CARD_HEIGHT) {
         return true
     }
 
     return false
 }
 
+set_clickable_cards :: proc(pile: ^Pile) {
+   //bottom card always clickable
+   fmt.println("first clickable")
+   top_card(&pile.cards).clickable = true
 
+    //Reverse
+    for i := len(pile.cards) - 1; i > 0; i -= 1 {
+        if stackable(&pile.cards[i-1], &pile.cards[i]) {
+            fmt.println("stackable cards!")
+            pile.cards[i-1].clickable = true
+        } else {
+            fmt.println("break out of clickable cards!")
+            //If its not continuous from bottom of stack, break
+            break;
+        }
+    }
+}
+
+//Basic stacking game rules here!
+stackable :: proc(card: ^Card, card_to_stack: ^Card) -> (bool) {
+    return ((card.color == Card_Color.Red && card_to_stack.color == Card_Color.Black) ||
+            (card.color == Card_Color.Black && card_to_stack.color == Card_Color.Red)) &&
+            card.rank == (card_to_stack.rank + 1)
+}
 
 draw_pile :: proc(pile: ^Pile) {
     draw_pile_source := rl.Rectangle {
@@ -424,7 +432,6 @@ draw_pile :: proc(pile: ^Pile) {
         draw_pile_dest, 0, 0, rl.WHITE
     )
 }
-
 
 draw_cards :: proc(cards: ^[dynamic]Card) {
     if cards == nil || len(cards) == 0 {
@@ -455,20 +462,6 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
 }
 
 setup_game_board :: proc(game_board: ^Game_Board) {
-
-    test_names := [dynamic]string {
-        "card_clubs_06.png"
-    }
-    fmt.println("----before")
-    fmt.printf("%v\n", test_names)
-    test1 := take_card_names(&test_names, 3)
-    fmt.println("----After")
-    fmt.printf("%v\n", test_names)
-    fmt.printf("%v\n", test1)
-    fmt.println("----")
-
-
-
     //Shuffle the deck
     rand.shuffle(deck_names[:])
     t1 := take_card_names(&deck_names, 1)
@@ -485,10 +478,8 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        stack_direction = rl.Vector2 { 0, 0 }
     }
     add_cards_pile(&stock, &deck_names);
-    //Only top card is clickable
     stock.cards[len(stock.cards) - 1].clickable = true
     game_board.stock = stock
-
 
     waste := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
@@ -504,7 +495,6 @@ setup_game_board :: proc(game_board: ^Game_Board) {
        stack_direction = rl.Vector2 { 0, 30 }
     }
     add_cards_pile(&tableau1, &t1);
-
 
     tableau2 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
@@ -548,6 +538,14 @@ setup_game_board :: proc(game_board: ^Game_Board) {
     }
     add_cards_pile(&tableau7, &t7);
 
+    set_clickable_cards(&tableau1)
+    set_clickable_cards(&tableau2)
+    set_clickable_cards(&tableau3)
+    set_clickable_cards(&tableau4)
+    set_clickable_cards(&tableau5)
+    set_clickable_cards(&tableau6)
+    set_clickable_cards(&tableau7)
+
     tableau: [dynamic]Pile
     append(&tableau, tableau1)
     append(&tableau, tableau2)
@@ -557,6 +555,7 @@ setup_game_board :: proc(game_board: ^Game_Board) {
     append(&tableau, tableau6)
     append(&tableau, tableau7)
     game_board.tableau = tableau
+
 
     //4 decks in foundation
     foundation1 := Pile {
@@ -594,7 +593,6 @@ add_cards_pile :: proc(pile: ^Pile, card_names: ^[dynamic]string) {
         add_card_pile(pile, card_names[i]);
     }
 }
-
 
 add_card_pile :: proc(pile: ^Pile, texture_name: string) {
     absolute_texture_file := strings.concatenate({"images/", texture_name})
@@ -640,7 +638,6 @@ add_card_pile :: proc(pile: ^Pile, texture_name: string) {
     } else if strings.contains(texture_name, "_K") {
         rank = 13
     }
-
 
     append(&pile.cards, Card {
         name = absolute_texture_file,
