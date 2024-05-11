@@ -10,9 +10,9 @@ import "core:fmt"
 
 // Solitaire todo:
 
-//Add all cards
 // Create all the cards in each tableau. Make sure clickable states are correct.
 // WINNING STATE! How do you win
+//Change stock card when we are at 0
 
 // ANIMATE CARDS going into tableau
 // Layered the stack so looks like many cards.
@@ -26,29 +26,20 @@ import "core:fmt"
 // Help screen.
 
 
-// Deck_Texture_Names := [dynamic]string {
-//     "card_clubs_02.png", "card_clubs_03.png", "card_clubs_04.png", "card_clubs_05.png", "card_clubs_06.png",
-//     "card_clubs_07.png", "card_clubs_08.png", "card_clubs_09.png", "card_clubs_10.png", "card_clubs_A.png",
-//     "card_clubs_J.png", "card_clubs_K.png", "card_clubs_Q.png", "card_diamonds_02.png",
-//     "card_diamonds_03.png", "card_diamonds_04.png", "card_diamonds_05.png", "card_diamonds_06.png",
-//     "card_diamonds_07.png", "card_diamonds_08.png", "card_diamonds_09.png", "card_diamonds_10.png",
-//     "card_diamonds_A.png", "card_diamonds_J.png", "card_diamonds_K.png", "card_diamonds_Q.png",
-//     "card_hearts_02.png", "card_hearts_03.png", "card_hearts_04.png", "card_hearts_05.png",
-//     "card_hearts_06.png", "card_hearts_07.png", "card_hearts_08.png", "card_hearts_09.png",
-//     "card_hearts_10.png", "card_hearts_A.png", "card_hearts_J.png", "card_hearts_K.png",
-//     "card_hearts_Q.png", "card_spades_02.png", "card_spades_03.png", "card_spades_04.png",
-//     "card_spades_05.png", "card_spades_06.png", "card_spades_07.png", "card_spades_08.png",
-//     "card_spades_09.png", "card_spades_10.png", "card_spades_A.png", "card_spades_J.png",
-//     "card_spades_K.png", "card_spades_Q.png"
-// }
-
-Deck_Texture_Names := [dynamic]string {
+deck_names := [dynamic]string {
     "card_clubs_02.png", "card_clubs_03.png", "card_clubs_04.png", "card_clubs_05.png", "card_clubs_06.png",
     "card_clubs_07.png", "card_clubs_08.png", "card_clubs_09.png", "card_clubs_10.png", "card_clubs_A.png",
     "card_clubs_J.png", "card_clubs_K.png", "card_clubs_Q.png", "card_diamonds_02.png",
     "card_diamonds_03.png", "card_diamonds_04.png", "card_diamonds_05.png", "card_diamonds_06.png",
     "card_diamonds_07.png", "card_diamonds_08.png", "card_diamonds_09.png", "card_diamonds_10.png",
-    "card_diamonds_A.png", "card_diamonds_J.png", "card_diamonds_K.png", "card_diamonds_Q.png"
+    "card_diamonds_A.png", "card_diamonds_J.png", "card_diamonds_K.png", "card_diamonds_Q.png",
+    "card_hearts_02.png", "card_hearts_03.png", "card_hearts_04.png", "card_hearts_05.png",
+    "card_hearts_06.png", "card_hearts_07.png", "card_hearts_08.png", "card_hearts_09.png",
+    "card_hearts_10.png", "card_hearts_A.png", "card_hearts_J.png", "card_hearts_K.png",
+    "card_hearts_Q.png", "card_spades_02.png", "card_spades_03.png", "card_spades_04.png",
+    "card_spades_05.png", "card_spades_06.png", "card_spades_07.png", "card_spades_08.png",
+    "card_spades_09.png", "card_spades_10.png", "card_spades_A.png", "card_spades_J.png",
+    "card_spades_K.png", "card_spades_Q.png"
 }
 
 Card_Color :: enum{Red, Black}
@@ -58,6 +49,7 @@ CARD_WIDTH :: f32(42 * CARD_SCALE)
 CARD_HEIGHT :: f32(60 * CARD_SCALE)
 
 Card :: struct {
+    name: string,
     texture: rl.Texture2D,
     position: rl.Vector2,
 
@@ -164,23 +156,18 @@ main :: proc() {
                 }
                 append(&previous_pile.cards, ..moving_cards[:])
             } else if stock_clicked {
+                if len(game_board.stock.cards) > 0 {
+                    waste_cards := take_cards(&game_board.stock.cards, 3)
+                    append(&game_board.waste.cards, ..waste_cards[:])
 
-                //Copy the clicked slice
-                if len(game_board.stock.cards) >= 3 {
-                    waste_cards := game_board.stock.cards[len(game_board.stock.cards) - 3:len(game_board.stock.cards)]
-                    waste_cards_copy := make([dynamic]Card, len(waste_cards))
-                    copy(waste_cards_copy[:], waste_cards[:])
-
-                    //Delete from current pile
-                    remove_range(&game_board.stock.cards,len(game_board.stock.cards) - 3, len(game_board.stock.cards))
-
-                    append(&game_board.waste.cards, ..waste_cards_copy[:])
                     for i in 0..<len(game_board.waste.cards) {
                         game_board.waste.cards[i].position = game_board.waste.position + (game_board.waste.stack_direction * f32(i))
                         game_board.waste.cards[i].clickable = false
                     }
                     waste_top_card := top_card(&game_board.waste.cards)
                     waste_top_card.clickable = true
+                    print_cards(&game_board.stock.cards)
+                    print_cards(&game_board.waste.cards)
                 }
                 stock_clicked = false
             }
@@ -218,6 +205,14 @@ main :: proc() {
     }
     rl.CloseWindow()
 }
+
+print_cards :: proc(cards: ^[dynamic]Card) {
+    fmt.println("\n\n")
+    for card in cards {
+        fmt.printf("%v ", card.name)
+    }
+}
+
 
 top_card :: proc(cards: ^[dynamic]Card) -> (^Card) {
     return &cards[len(cards) - 1]
@@ -263,28 +258,65 @@ get_clicked_cards :: proc(game_board: ^Game_Board) -> ([dynamic]Card, ^Pile, boo
 }
 
 
-find_clicked_cards :: proc(pile: ^[dynamic]Card) -> ([dynamic]Card, bool) {
+find_clicked_cards :: proc(cards: ^[dynamic]Card) -> ([dynamic]Card, bool) {
     mouse_pos := rl.GetMousePosition()
     //Reversed because this is the rendering order and we want to select the top one first
-    #reverse for card, card_index in pile {
+    #reverse for card, card_index in cards {
         if mouse_pos.x >= card.position.x &&
            mouse_pos.x <= (card.position.x + CARD_WIDTH) &&
            mouse_pos.y >= card.position.y &&
            mouse_pos.y <= (card.position.y + CARD_HEIGHT) &&
            card.clickable {
             //Copy the clicked slice
-            clicked_slice := pile[card_index:len(pile)]
+            clicked_slice := cards[card_index:len(cards)]
             clicked_slice_copy := make([dynamic]Card, len(clicked_slice))
             copy(clicked_slice_copy[:], clicked_slice[:])
 
-            //Delete from current pile
-            remove_range(pile, card_index, len(pile))
+            //Delete from current cards
+            remove_range(cards, card_index, len(cards))
 
             return clicked_slice_copy, true
         }
     }
     return nil, false
 }
+
+
+//Generics here?
+take_card_names :: proc(cards: ^[dynamic]string, total: int) -> ([dynamic]string) {
+    taken_cards_copy: [dynamic]string
+    if len(cards) < total {
+        taken_cards_copy = make([dynamic]string, len(cards))
+        copy(taken_cards_copy[:], cards[:])
+        remove_range(cards, 0, len(cards))
+    } else {
+        taken_cards_copy = make([dynamic]string, total)
+        taken_cards := cards[len(cards) - total:len(cards)]
+        copy(taken_cards_copy[:], taken_cards[:])
+        remove_range(cards, len(cards) - total, len(cards))
+    }
+
+    slice.reverse(taken_cards_copy[:])
+    return taken_cards_copy
+}
+
+take_cards :: proc(cards: ^[dynamic]Card, total: int) -> ([dynamic]Card) {
+    taken_cards_copy: [dynamic]Card
+    if len(cards) < total {
+        taken_cards_copy = make([dynamic]Card, len(cards))
+        copy(taken_cards_copy[:], cards[:])
+        remove_range(cards, 0, len(cards))
+    } else {
+        taken_cards_copy = make([dynamic]Card, total)
+        taken_cards := cards[len(cards) - total:len(cards)]
+        copy(taken_cards_copy[:], taken_cards[:])
+        remove_range(cards, len(cards) - total, len(cards))
+    }
+
+    slice.reverse(taken_cards_copy[:])
+    return taken_cards_copy
+}
+
 
 get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Card) -> (^Pile, bool) {
     if moving_cards == nil || len(moving_cards) == 0 {
@@ -423,20 +455,40 @@ draw_cards :: proc(cards: ^[dynamic]Card) {
 }
 
 setup_game_board :: proc(game_board: ^Game_Board) {
+
+    test_names := [dynamic]string {
+        "card_clubs_06.png"
+    }
+    fmt.println("----before")
+    fmt.printf("%v\n", test_names)
+    test1 := take_card_names(&test_names, 3)
+    fmt.println("----After")
+    fmt.printf("%v\n", test_names)
+    fmt.printf("%v\n", test1)
+    fmt.println("----")
+
+
+
     //Shuffle the deck
-    rand.shuffle(Deck_Texture_Names[:])
+    rand.shuffle(deck_names[:])
+    t1 := take_card_names(&deck_names, 1)
+    t2 := take_card_names(&deck_names, 2)
+    t3 := take_card_names(&deck_names, 3)
+    t4 := take_card_names(&deck_names, 4)
+    t5 := take_card_names(&deck_names, 5)
+    t6 := take_card_names(&deck_names, 6)
+    t7 := take_card_names(&deck_names, 7)
 
     stock := Pile {
        texture = rl.LoadTexture("images/card_back.png"),
        position = rl.Vector2 { 140, 25 },
        stack_direction = rl.Vector2 { 0, 0 }
     }
-    for i in 0..<len(Deck_Texture_Names) {
-        add_card_pile(&stock, Deck_Texture_Names[i]);
-    }
+    add_cards_pile(&stock, &deck_names);
     //Only top card is clickable
     stock.cards[len(stock.cards) - 1].clickable = true
     game_board.stock = stock
+
 
     waste := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
@@ -445,42 +497,56 @@ setup_game_board :: proc(game_board: ^Game_Board) {
     }
     game_board.waste = waste
 
-    //7 decks in tableau
+
     tableau1 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 340, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau1, &t1);
+
+
     tableau2 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 440, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau2, &t2);
+
     tableau3 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 540, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau3, &t3);
+
     tableau4 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 640, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau4, &t4);
+
     tableau5 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 740, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau5, &t5);
+
     tableau6 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 840, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau6, &t6);
+
     tableau7 := Pile {
        texture = rl.LoadTexture("images/card_empty.png"),
        position = rl.Vector2 { 940, 190 },
        stack_direction = rl.Vector2 { 0, 30 }
     }
+    add_cards_pile(&tableau7, &t7);
 
     tableau: [dynamic]Pile
     append(&tableau, tableau1)
@@ -523,15 +589,18 @@ setup_game_board :: proc(game_board: ^Game_Board) {
 }
 
 
-add_card_pile :: proc(
-    pile: ^Pile,
-    texture_name: string
-) {
+add_cards_pile :: proc(pile: ^Pile, card_names: ^[dynamic]string) {
+    for i in 0..<len(card_names) {
+        add_card_pile(pile, card_names[i]);
+    }
+}
+
+
+add_card_pile :: proc(pile: ^Pile, texture_name: string) {
     absolute_texture_file := strings.concatenate({"images/", texture_name})
 
     color: Card_Color
     rank: u8
-    stackable: bool
 
     clubs := strings.contains(texture_name, "club")
     heart := strings.contains(texture_name, "heart")
@@ -574,11 +643,11 @@ add_card_pile :: proc(
 
 
     append(&pile.cards, Card {
+        name = absolute_texture_file,
         texture = rl.LoadTexture(strings.clone_to_cstring(absolute_texture_file)),
         position = pile.position + (pile.stack_direction * f32(len(pile.cards))),
         rank = rank,
-        color = color,
-        stackable = stackable
+        color = color
     })
 }
 
