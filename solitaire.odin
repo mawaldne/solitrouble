@@ -10,9 +10,9 @@ import "core:fmt"
 
 // Solitaire todo:
 
-// Change stock card when we are at 0. You need to be able to stack a card there!
 // WINNING STATE! How do you win
 
+// Animate top corner...And make the card you hover over fade/or change color to stack?
 // ANIMATE CARDS going into tableau
 // Layered the stack so looks like many cards.
 // Nicer background
@@ -70,6 +70,8 @@ Game_Board :: struct {
     waste: Pile,
     tableau: [dynamic]Pile,
     foundation: [dynamic]Pile,
+
+    stock_exhausted: bool
 }
 
 main :: proc() {
@@ -92,7 +94,9 @@ main :: proc() {
         if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
             if !cards_moving {
                 //Check if we clicked on stock pile. If so update waste pile with 3 new cards
-                stock_clicked = check_stock_clicked(&game_board)
+                if !game_board.stock_exhausted {
+                    stock_clicked = check_stock_clicked(&game_board)
+                }
 
                 //Otherwise get clicked card from the waste/tableaus (you can't take from the foundation)
                 moving_cards, previous_pile, cards_moving = get_clicked_cards(&game_board)
@@ -165,6 +169,11 @@ main :: proc() {
             moving_cards = nil
         }
 
+        if !game_board.stock_exhausted && len(game_board.stock.cards) == 0 {
+            game_board.stock_exhausted = true
+            game_board.stock.texture = rl.LoadTexture("images/stock_stackable.png")
+        }
+
         rl.BeginDrawing()
         rl.ClearBackground(rl.BLUE)
 
@@ -177,7 +186,6 @@ main :: proc() {
             draw_pile(&game_board.foundation[i])
         }
         //Draw all cards
-        draw_cards(&game_board.stock.cards)
         draw_cards(&game_board.waste.cards)
         for i in 0..<len(game_board.tableau) {
             draw_cards(&game_board.tableau[i].cards)
@@ -185,8 +193,12 @@ main :: proc() {
         for i in 0..<len(game_board.foundation) {
             draw_cards(&game_board.foundation[i].cards)
         }
-        //Draw stock pile on top for now...
+
         draw_pile(&game_board.stock)
+        if game_board.stock_exhausted {
+            draw_cards(&game_board.stock.cards)
+        }
+
         //Draw the moving cards if exists
         draw_cards(&moving_cards)
 
@@ -201,7 +213,6 @@ print_cards :: proc(cards: ^[dynamic]Card) {
         fmt.printf("%v ", card.name)
     }
 }
-
 
 top_card :: proc(cards: ^[dynamic]Card) -> (^Card) {
     return &cards[len(cards) - 1]
@@ -236,11 +247,16 @@ get_clicked_cards :: proc(game_board: ^Game_Board) -> ([dynamic]Card, ^Pile, boo
     if cards_moving {
          return moving_cards, &game_board.waste, cards_moving
     }
-
     for i in 0..<len(game_board.tableau) {
         moving_cards, cards_moving = find_clicked_cards(&game_board.tableau[i].cards)
         if cards_moving {
             return moving_cards, &game_board.tableau[i], cards_moving
+        }
+    }
+    if (game_board.stock_exhausted) {
+        moving_cards, cards_moving = find_clicked_cards(&game_board.stock.cards)
+        if cards_moving {
+             return moving_cards, &game_board.stock, cards_moving
         }
     }
     return nil, nil, false
@@ -288,7 +304,6 @@ take_card_names :: proc(cards: ^[dynamic]string, total: int) -> ([dynamic]string
     slice.reverse(taken_cards_copy[:])
     return taken_cards_copy
 }
-
 take_cards :: proc(cards: ^[dynamic]Card, total: int) -> ([dynamic]Card) {
     taken_cards_copy: [dynamic]Card
     if len(cards) < total {
@@ -354,6 +369,14 @@ get_overlapped_pile :: proc(game_board: ^Game_Board, moving_cards: ^[dynamic]Car
                 return &game_board.foundation[i], overlapped
             }
         }
+
+        if len(game_board.stock.cards) == 0 {
+            // Overlapped stock
+            overlapped := check_if_overlapped_pile(&game_board.stock, moving_cards)
+            if overlapped {
+                return &game_board.stock, overlapped
+            }
+        }
     }
     return nil, false
 }
@@ -387,17 +410,14 @@ check_if_overlapped_pile :: proc(pile: ^Pile, moving_cards: ^[dynamic]Card) -> (
 }
 
 set_clickable_cards :: proc(pile: ^Pile) {
-   //bottom card always clickable
-   fmt.println("first clickable")
-   top_card(&pile.cards).clickable = true
+    //bottom card always clickable
+    top_card(&pile.cards).clickable = true
 
     //Reverse
     for i := len(pile.cards) - 1; i > 0; i -= 1 {
         if stackable(&pile.cards[i-1], &pile.cards[i]) {
-            fmt.println("stackable cards!")
             pile.cards[i-1].clickable = true
         } else {
-            fmt.println("break out of clickable cards!")
             //If its not continuous from bottom of stack, break
             break;
         }
