@@ -410,6 +410,9 @@ check_if_overlapped_pile :: proc(pile: ^Pile, moving_cards: ^[dynamic]Card) -> (
 }
 
 set_clickable_cards :: proc(pile: ^Pile) {
+    if len(pile.cards) == 0 {
+        return
+    }
     //bottom card always clickable
     top_card(&pile.cards).clickable = true
 
