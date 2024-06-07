@@ -6,3 +6,9 @@ Its just a clone of one of the solitaire games from Zachtonics [Last Call BBS](h
 
 Theres still a lot of TODOS here to make it a full fledge game. I have to finish the winning states. And also include things like
 a title screen/etc. This was mostly a fun project just to learn Odin and Raylib. 
+
+## Compiling and playing
+```
+odin build solitaire.odin -file
+./solitaire
+```
