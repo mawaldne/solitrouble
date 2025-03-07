@@ -38,3 +38,4 @@ Then you can load the game at localhost:8000
 ```
 
 <img width="1313" alt="Screen Shot 2024-06-07 at 2 44 48 PM" src="https://github.com/mawaldne/solitrouble/assets/40419/dfbfcb80-d7d9-4c56-8932-895f9ecccba8">
+<img width="1058" alt="Screenshot 2025-03-07 at 1 19 47 PM" src="https://github.com/user-attachments/assets/f1ad3e22-cb45-4dd9-9be9-ed32b48cd779" />
