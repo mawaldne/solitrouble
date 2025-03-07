@@ -26,7 +26,7 @@ I programmed this game on a mac. The wasm build might not work for you!
 Install:
 1) Get Odin and compile it on mac: https://odin-lang.org/docs/install/#macos
 2) Get emscript: https://emscripten.org/docs/getting_started/downloads.html
-3) You might have to modify the ./build_web.sh script. Specifically the `EMSCRIPTEN_SDK_DIR` (point it to where you cloned and built emsdk). Also the `files=` will be different on your system. (Point it to where you cloned and build Odin into the vendor/raylib/wasm folders)
+3) You might have to modify the ./build_web.sh script. Specifically the `EMSCRIPTEN_SDK_DIR` (point it to where you cloned and built emsdk). Also the `files=` will be different on your system. (Point it to where you cloned and built Odin and find the vendor/raylib/wasm files)
 
 Compile:
 ```
