@@ -21,9 +21,8 @@ build_desktop.sh
 
 ## WASM Web build
 
-I programmed this game on a mac. The wasm build might not work for you!
+I programmed this game on a mac. The wasm build will not work for you because its setup for my computer. You will have to do some changes if you want to build it for wasm:
 
-Install:
 1) Get Odin and compile it on mac: https://odin-lang.org/docs/install/#macos
 2) Get emscript: https://emscripten.org/docs/getting_started/downloads.html
 3) You will have to modify the ./build_web.sh script as its setup for my environment! Specifically the `EMSCRIPTEN_SDK_DIR` (point it to where you cloned and built emsdk). Also the `files=` will be different on your system. (Point it to where you cloned and built Odin and find the vendor/raylib/wasm files)
